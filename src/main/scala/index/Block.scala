@@ -1,18 +1,17 @@
 package index
 
-trait Block[K, V] {
+trait Block {
+
+  val id: String
 
   val MIN: Int
   val MAX: Int
 
-  def last: K
-  def split(): Block[K, V]
-
-  def insert(data: Seq[(K, V)]): (Boolean, Int)
-  def remove(data: Seq[K]): (Boolean, Int)
+  def last: Bytes
+  //def copy()(implicit ctx: Context): this.type
+  //def split()(implicit ctx: Context): this.type
 
   def isFull(): Boolean
   def isEmpty(): Boolean
-  def inOrder(): Seq[(K, V)]
 
 }

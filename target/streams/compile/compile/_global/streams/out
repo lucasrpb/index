@@ -1,0 +1,25 @@
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Leaf.scala:47:16: incompatible type in overriding[0m
+[0m[[0m[31merror[0m] [0m[0mdef copy()(implicit ctx: index.Context): Leaf.this.type (defined in trait Block);[0m
+[0m[[0m[31merror[0m] [0m[0m found   : ()(implicit ctx: index.Context)index.Leaf[0m
+[0m[[0m[31merror[0m] [0m[0m required: ()(implicit ctx: index.Context)Leaf.this.type[0m
+[0m[[0m[31merror[0m] [0m[0m  override def copy()(implicit ctx: Context): Leaf = {[0m
+[0m[[0m[31merror[0m] [0m[0m               ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Leaf.scala:59:16: incompatible type in overriding[0m
+[0m[[0m[31merror[0m] [0m[0mdef split()(implicit ctx: index.Context): Leaf.this.type (defined in trait Block);[0m
+[0m[[0m[31merror[0m] [0m[0m found   : ()(implicit ctx: index.Context)index.Leaf[0m
+[0m[[0m[31merror[0m] [0m[0m required: ()(implicit ctx: index.Context)Leaf.this.type[0m
+[0m[[0m[31merror[0m] [0m[0m  override def split()(implicit ctx: Context): Leaf = {[0m
+[0m[[0m[31merror[0m] [0m[0m               ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Meta.scala:75:16: incompatible type in overriding[0m
+[0m[[0m[31merror[0m] [0m[0mdef copy()(implicit ctx: index.Context): Meta.this.type (defined in trait Block);[0m
+[0m[[0m[31merror[0m] [0m[0m found   : ()(implicit ctx: index.Context)index.Meta[0m
+[0m[[0m[31merror[0m] [0m[0m required: ()(implicit ctx: index.Context)Meta.this.type[0m
+[0m[[0m[31merror[0m] [0m[0m  override def copy()(implicit ctx: Context): Meta = {[0m
+[0m[[0m[31merror[0m] [0m[0m               ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Meta.scala:88:16: incompatible type in overriding[0m
+[0m[[0m[31merror[0m] [0m[0mdef split()(implicit ctx: index.Context): Meta.this.type (defined in trait Block);[0m
+[0m[[0m[31merror[0m] [0m[0m found   : ()(implicit ctx: index.Context)index.Meta[0m
+[0m[[0m[31merror[0m] [0m[0m required: ()(implicit ctx: index.Context)Meta.this.type[0m
+[0m[[0m[31merror[0m] [0m[0m  override def split()(implicit ctx: Context): Meta = {[0m
+[0m[[0m[31merror[0m] [0m[0m               ^[0m
+[0m[[0m[31merror[0m] [0m[0mfour errors found[0m

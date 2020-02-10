@@ -1,12 +1,15 @@
 package index
 
-import scala.reflect.ClassTag
+import java.util.UUID
+import scala.collection.mutable.ArrayBuffer
 
-class Leaf[K: ClassTag, V: ClassTag](override val MIN: Int, override val MAX: Int)(implicit ord: Ordering[K]) extends Block[K, V] {
+class Leaf(override val id: String,
+           override val MIN: Int,
+           override val MAX: Int)(implicit ord: Ordering[Bytes]) extends Block {
 
-  var tuples = Seq.empty[(K, V)]
+  var tuples = ArrayBuffer.empty[Tuple]
 
-  def find(k: K, start: Int, end: Int): (Boolean, Int) = {
+  def find(k: Bytes, start: Int, end: Int): (Boolean, Int) = {
     if(start > end) return false -> start
 
     val pos = start + (end - start)/2
@@ -18,13 +21,7 @@ class Leaf[K: ClassTag, V: ClassTag](override val MIN: Int, override val MAX: In
     find(k, pos + 1, end)
   }
 
-  override def near(k: K): Option[V] = {
-    if(isEmpty()) return None
-    val (_, pos) = find(k, 0, tuples.length - 1)
-    Some(tuples(if(pos < tuples.length) pos else pos - 1)._2)
-  }
-
-  override def insert(data: Seq[(K, V)]): (Boolean, Int) = {
+  def insert(data: Seq[Tuple]): (Boolean, Int) = {
     if(isFull()) return false -> 0
 
     val n = Math.min(data.length, MAX - tuples.length)
@@ -39,19 +36,7 @@ class Leaf[K: ClassTag, V: ClassTag](override val MIN: Int, override val MAX: In
     true -> n
   }
 
-  override def split(): Block[K, V] = {
-    val right = new Leaf[K, V](MIN, MAX)
-
-    val old = tuples
-    val middle = tuples.length/2
-
-    tuples = old.slice(0, middle)
-    right.tuples = old.slice(middle, tuples.length)
-
-    right
-  }
-
-  override def remove(data: Seq[K]): (Boolean, Int) = {
+  def remove(data: Seq[Bytes]): (Boolean, Int) = {
     if(isEmpty()) return false -> 0
 
     tuples = tuples.filterNot{case (k, _) => data.exists(ord.equiv(_, k))}
@@ -59,13 +44,36 @@ class Leaf[K: ClassTag, V: ClassTag](override val MIN: Int, override val MAX: In
     true -> data.length
   }
 
-  override def last: K = tuples.last._1
+  def copy()(implicit ctx: Context): Leaf = {
+    if(ctx.blocks.isDefinedAt(id)) return this
+
+    val copy = new Leaf(UUID.randomUUID.toString, MIN, MAX)
+
+    ctx.blocks += copy.id -> copy
+
+    copy.tuples = tuples.map {_.copy()}
+
+    copy
+  }
+
+  def split()(implicit ctx: Context): Leaf = {
+    val right = new Leaf(UUID.randomUUID.toString, MIN, MAX)
+
+    ctx.blocks += right.id -> right
+
+    val pos = tuples.length/2
+
+    right.tuples = tuples.slice(pos, tuples.length)
+    tuples = tuples.slice(0, pos)
+
+    right
+  }
+
+  override def last: Bytes = tuples.last._1
 
   override def isFull(): Boolean = tuples.length == MAX
   override def isEmpty(): Boolean = tuples.isEmpty
-  override def inOrder(): Seq[(K, V)] = tuples
-
-  override def hasMinimum(): Boolean = tuples.length >= MIN
+  def inOrder(): Seq[Tuple] = tuples.toSeq
 
   override def toString: String = {
     tuples.mkString(",")
