@@ -76,6 +76,6 @@ class Leaf(override val id: String,
   def inOrder(): Seq[Tuple] = tuples.toSeq
 
   override def toString: String = {
-    tuples.mkString(",")
+    tuples.map{case (k, v) => new String(k) -> new String(v)}.mkString(",")
   }
 }

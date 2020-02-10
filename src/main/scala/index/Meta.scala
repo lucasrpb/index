@@ -102,4 +102,8 @@ class Meta(override val id: String,
   }
 
   def inOrder(): Seq[Pointer] = pointers.toSeq
+
+  override def toString: String = {
+    pointers.map{case (k, _) => new String(k)}.mkString(",")
+  }
 }

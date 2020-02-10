@@ -1,0 +1,7 @@
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\Retriable.scala:14:25: method withFixture in trait TestSuiteMixin is accessed from super. It may not be abstract unless it is overridden by a member declared `abstract` and `override`[0m
+[0m[[0m[31merror[0m] [0m[0m    val outcome = super.withFixture(test)[0m
+[0m[[0m[31merror[0m] [0m[0m                        ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\Retriable.scala:16:47: method withFixture in trait TestSuiteMixin is accessed from super. It may not be abstract unless it is overridden by a member declared `abstract` and `override`[0m
+[0m[[0m[31merror[0m] [0m[0m      case Succeeded => if (count == 1) super.withFixture(test) else withFixture(test, count - 1)[0m
+[0m[[0m[31merror[0m] [0m[0m                                              ^[0m
+[0m[[0m[31merror[0m] [0m[0mtwo errors found[0m

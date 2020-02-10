@@ -5,3 +5,6 @@ compile
 test
 cls
 test
+test 2
+testOnly index.MainSpec 2
+test
