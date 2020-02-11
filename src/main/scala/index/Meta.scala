@@ -59,6 +59,10 @@ class Meta(override val id: String,
   def remove(data: Seq[Bytes])(implicit ctx: Context): (Boolean, Int) = {
     if(isEmpty()) return false -> 0
 
+    if(data.exists{k1 => !pointers.exists{case (k, _) => ord.equiv(k, k1)}}){
+      return false -> 0
+    }
+
     pointers = pointers.filterNot{case (k, _) => data.exists(ord.equiv(_, k))}
 
     setPointers()
@@ -78,6 +82,7 @@ class Meta(override val id: String,
     val copy = new Meta(UUID.randomUUID.toString, MIN, MAX)
 
     ctx.blocks += copy.id -> copy
+    ctx.parents += copy.id -> ctx.parents(id)
 
     copy.pointers = pointers.map {_.copy()}
     copy.setPointers()

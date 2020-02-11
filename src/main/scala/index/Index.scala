@@ -2,20 +2,38 @@ package index
 
 import java.util.UUID
 
-class Index(val root: Option[String],
+class Index(val ROOT: Option[String],
             val MIN: Int,
             val MAX: Int)(implicit val ord: Ordering[Bytes], cache: Cache){
 
-  implicit val ctx = new Context(root, cache)
+  implicit val ctx = new Context(ROOT, cache)
 
-  def find(k: Bytes, root: Option[String] = ctx.root): Option[Leaf] = {
-    root match {
+  def find(k: Bytes, start: Option[String]): Option[Leaf] = {
+    start match {
       case None => None
-      case Some(root) => ctx.get(root) match {
+      case Some(id) => ctx.get(id) match {
         case leaf: Leaf => Some(leaf)
-        case meta: Meta => find(k, meta.findPath(k))
+        case meta: Meta =>
+
+          val len = meta.pointers.length
+          val pointers = meta.pointers
+
+          for(i<-0 until len){
+            val (_, c) = pointers(i)
+            ctx.parents += c -> (Some(meta.id), i)
+          }
+
+          find(k, meta.findPath(k))
       }
     }
+  }
+
+  def find(k: Bytes): Option[Leaf] = {
+    if(ctx.root.isDefined){
+      ctx.parents += ctx.root.get -> (None, 0)
+    }
+
+    find(k, ctx.root)
   }
 
   def recursiveCopy(p: Block): Boolean = {
@@ -36,6 +54,7 @@ class Index(val root: Option[String],
   }
 
   def insertEmpty(data: Seq[Tuple]): (Boolean, Int) = {
+
     val leaf = new Leaf(UUID.randomUUID.toString, MIN, MAX)
 
     ctx.blocks += leaf.id -> leaf
@@ -88,8 +107,6 @@ class Index(val root: Option[String],
         val parent = ctx.getMeta(pid).copy()
 
         parent.setPointer(left.last, left.id, pos)
-        ctx.parents += left.id -> (Some(parent.id), pos)
-
         insertParent(parent, right)
     }
   }
