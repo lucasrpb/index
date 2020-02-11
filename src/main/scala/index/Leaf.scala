@@ -48,6 +48,17 @@ class Leaf(override val id: String,
     true -> data.length
   }
 
+  def update(data: Seq[Tuple]): (Boolean, Int) = {
+    if(!data.forall{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
+      return false -> 0
+    }
+
+    tuples = tuples.filterNot{case (k, _) => data.exists{case (k1, _) => ord.equiv(k, k1)}}
+    tuples = (tuples ++ data).sortBy(_._1)
+
+    true -> data.length
+  }
+
   def copy()(implicit ctx: Context): Leaf = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
@@ -74,13 +85,41 @@ class Leaf(override val id: String,
     right
   }
 
+  def canBorrowTo(target: Leaf): Boolean = tuples.length - (MIN - target.tuples.length) >= MIN
+
+  def borrowLeftTo(target: Leaf): Leaf = {
+    val n = MIN - target.tuples.length
+    val start = tuples.length - n
+
+    target.tuples = tuples.slice(start, tuples.length) ++ target.tuples
+    tuples = tuples.slice(0, start)
+
+    target
+  }
+
+  def borrowRightTo(target: Leaf): Leaf = {
+    val n = MIN - target.tuples.length
+    val len = tuples.length
+
+    target.tuples = target.tuples ++ tuples.slice(0, n)
+    tuples = tuples.slice(n, len)
+
+    target
+  }
+
+  def merge(right: Leaf): Leaf = {
+    tuples = tuples ++ right.tuples
+    this
+  }
+
   override def last: Bytes = tuples.last._1
 
   override def isFull(): Boolean = tuples.length == MAX
+  override def hasMinimum(): Boolean = tuples.length >= MIN
   override def isEmpty(): Boolean = tuples.isEmpty
   def inOrder(): Seq[Tuple] = tuples.toSeq
 
   override def toString: String = {
-    tuples.map{case (k, v) => new String(k) -> new String(v)}.mkString(",")
+    "["+tuples.map{case (k, v) => new String(k) -> new String(v)}.mkString(",")+"]"
   }
 }

@@ -8,3 +8,7 @@ test
 test 2
 testOnly index.MainSpec 2
 test
+cls
+test
+test3
+test

@@ -12,6 +12,7 @@ trait Block {
   //def split()(implicit ctx: Context): this.type
 
   def isFull(): Boolean
+  def hasMinimum(): Boolean
   def isEmpty(): Boolean
 
 }

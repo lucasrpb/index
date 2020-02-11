@@ -1,10 +1,4 @@
-[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\MainSpec.scala:62:58: postfix operator seconds needs to be enabled[0m
-[0m[[0m[31merror[0m] [0m[0mby making the implicit value scala.language.postfixOps visible.[0m
-[0m[[0m[31merror[0m] [0m[0m----[0m
-[0m[[0m[31merror[0m] [0m[0mThis can be achieved by adding the import clause 'import scala.language.postfixOps'[0m
-[0m[[0m[31merror[0m] [0m[0mor by setting the compiler option -language:postfixOps.[0m
-[0m[[0m[31merror[0m] [0m[0mSee the Scaladoc for value scala.language.postfixOps for a discussion[0m
-[0m[[0m[31merror[0m] [0m[0mwhy the feature needs to be explicitly enabled.[0m
-[0m[[0m[31merror[0m] [0m[0m    val results = Await.result(Future.sequence(tasks), 5 seconds)[0m
-[0m[[0m[31merror[0m] [0m[0m                                                         ^[0m
-[0m[[0m[31merror[0m] [0m[0mone error found[0m
+[0m[[0m[33mwarn[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\MainSpec.scala:64:41: comparing values of types Int and Boolean using `==` will always yield false[0m
+[0m[[0m[33mwarn[0m] [0m[0m    val successes = results.filter(_._1 == true)[0m
+[0m[[0m[33mwarn[0m] [0m[0m                                        ^[0m
+[0m[[0m[33mwarn[0m] [0m[0mone warning found[0m
