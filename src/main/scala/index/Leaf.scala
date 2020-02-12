@@ -9,6 +9,9 @@ class Leaf(override val id: String,
 
   var tuples = ArrayBuffer.empty[Tuple]
 
+  var next: Option[String] = None
+  var prev: Option[String] = None
+
   def find(k: Bytes, start: Int, end: Int): (Boolean, Int) = {
     if(start > end) return false -> start
 

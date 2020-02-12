@@ -51,7 +51,9 @@ object Query {
 
     levels.size -> num_data_blocks
   }
-  
+
+
+
   def inOrder(start: Option[String], root: Option[String])(implicit cache: Cache): Seq[Tuple] = {
     start match {
       case None => Seq.empty[Tuple]
