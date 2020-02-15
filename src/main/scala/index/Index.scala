@@ -479,61 +479,64 @@ class Index(val ROOT: Option[String],
     }
 
     true -> size
-  }
+  }*/
 
-
-  def update(leaf: Leaf, data: Seq[Tuple]): (Boolean, Int) = {
+  def updateLeaf(leaf: Leaf, data: Seq[Tuple]): Future[(Boolean, Int)] = {
     val left = leaf.copy()
 
     if(left.isFull()){
       val right = left.split()
-      return handleParent(left, right) -> 0
+      return handleParent(left, right).map(_ -> 0)
     }
 
     val (ok, n) = left.update(data)
 
-    if(!ok) return false -> 0
+    if(!ok) return Future.successful(false -> 0)
 
-    recursiveCopy(left) -> n
+    recursiveCopy(left).map(_ -> n)
   }
 
-  def update(data: Seq[Tuple]): (Boolean, Int) = {
+  def update(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
     if(data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE)){
       println(s"UPDATE MAX TUPLE SIZE :(")
-      return false -> 0
+      return Future.successful(false -> 0)
     }
 
     val sorted = data.sortBy(_._1)
 
     if(sorted.exists{case (k, _) => data.count{case (k1, _) => ord.equiv(k, k1)} > 1}){
-      return false -> 0
+      return Future.successful(false -> 0)
     }
 
-    val size = sorted.length
+    val len = sorted.length
     var pos = 0
 
-    while(pos < size){
+    def update(): Future[(Boolean, Int)] = {
+      if(pos == len) return Future.successful(true -> len)
 
-      var list = sorted.slice(pos, size)
+      var list = sorted.slice(pos, len)
       val (k, _) = list(0)
 
-      val (ok, n) = find(k) match {
-        case None => false -> 0
+      find(k).flatMap {
+        case None => Future.successful(false -> 0)
         case Some(leaf) =>
 
           val idx = list.indexWhere {case (k, _) => ord.gt(k, leaf.last)}
           if(idx > 0) list = list.slice(0, idx)
 
-          update(leaf, list)
+          updateLeaf(leaf, list)
+      }.flatMap { case (ok, n) =>
+        if(!ok){
+          Future.successful(false -> 0)
+        } else {
+          pos += n
+          update()
+        }
       }
-
-      if(!ok) return false -> 0
-
-      pos += n
     }
 
-    true -> size
-  }*/
+    update()
+  }
 
 }

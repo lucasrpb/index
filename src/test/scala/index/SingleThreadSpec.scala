@@ -29,7 +29,7 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 1
+    val iter = 100
     val SIZE = 4 * 1024
     val TUPLE_SIZE = 64
 
@@ -50,9 +50,9 @@ class SingleThreadSpec extends Retriable {
       }
 
       val task =  index.insert(list).flatMap { case (ok, n) =>
-        cache.save(index.ctx).map { ok =>
-          ok && ref.compareAndSet(root, index.ctx.root)
-        }
+        if(ok) cache.save(index.ctx).map { _ =>
+          ref.compareAndSet(root, index.ctx.root)
+        } else Future.successful(false)
       }
 
       if(Await.result(task, 5 seconds)) {
@@ -72,12 +72,12 @@ class SingleThreadSpec extends Retriable {
       if(index.remove(list.map(_._1))._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
         data = data.filterNot{case (k, _) => list.exists{case (k1, _) => ord.equiv(k, k1)}}
       }
-    }
+    }*/
 
     def update(): Unit = {
 
       val root = ref.get()
-      var list = Query.inOrder(root, root)
+      var list = Await.result(Query.inOrder(root, root), 2 seconds)
 
       if(list.isEmpty) return
 
@@ -88,18 +88,23 @@ class SingleThreadSpec extends Retriable {
 
       val index = new Index(root, SIZE, TUPLE_SIZE)
 
-      if(index.update(list)._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
+      val task =  index.update(list).flatMap { case (ok, _) =>
+        if(ok) cache.save(index.ctx).map { ok2 =>
+          ref.compareAndSet(root, index.ctx.root)
+        } else Future.successful(false)
+      }
+
+      if(Await.result(task, 5 seconds)) {
         data = data.filterNot{case (k, _) => list.exists{case (k1, _) => ord.equiv(k, k1)}}
         data = data ++ list
       }
-    }*/
+    }
 
     for(i<-0 until iter){
-      rand.nextInt(1, 2) match {
+      rand.nextInt(1, 3) match {
         case 1 => insert()
         //case 2 => remove()
-        //case _ => update()
-        case _ =>
+        case _ => update()
       }
     }
 

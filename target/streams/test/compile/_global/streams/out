@@ -1,6 +1,7 @@
-[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\SingleThreadSpec.scala:105:85: type mismatch;[0m
-[0m[[0m[31merror[0m] [0m[0m found   : index.Block[0m
-[0m[[0m[31merror[0m] [0m[0m required: index.Meta[0m
-[0m[[0m[31merror[0m] [0m[0m    var aux: Option[Leaf] = if(ctx.root.isEmpty) None else Query.getLeftMost(ctx.get(ctx.root.get))[0m
-[0m[[0m[31merror[0m] [0m[0m                                                                                    ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\SingleThreadSpec.scala:113:45: type mismatch;[0m
+[0m[[0m[31merror[0m] [0m[0m found   : Seq[index.Tuple][0m
+[0m[[0m[31merror[0m] [0m[0m    (which expands to)  Seq[(Array[Byte], Array[Byte])][0m
+[0m[[0m[31merror[0m] [0m[0m required: scala.concurrent.Awaitable[?][0m
+[0m[[0m[31merror[0m] [0m[0m    val isorted = Await.result(Query.inOrder(ref.get(), ref.get()), 10 seconds)[0m
+[0m[[0m[31merror[0m] [0m[0m                                            ^[0m
 [0m[[0m[31merror[0m] [0m[0mone error found[0m
