@@ -4,8 +4,13 @@ trait Block {
 
   val id: String
 
-  val MIN: Int
-  val MAX: Int
+  val MIN_LENGTH: Int
+  val MAX_SIZE: Int
+  val MAX_TUPLE_SIZE: Int
+
+  def length: Int
+  def size: Int
+  def remaining: Int
 
   def last: Bytes
   //def copy()(implicit ctx: Context): this.type

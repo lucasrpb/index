@@ -4,9 +4,10 @@ import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 
 class Meta(override val id: String,
-           override val MIN: Int,
-           override val MAX: Int)(implicit val ord: Ordering[Bytes]) extends Block {
-
+           override val MAX_TUPLE_SIZE: Int,
+           override val MIN_LENGTH: Int,
+           override val MAX_SIZE: Int)(implicit val ord: Ordering[Bytes]) extends Block {
+  
   var pointers = ArrayBuffer.empty[Pointer]
 
   def find(k: Bytes, start: Int, end: Int): (Boolean, Int) = {
@@ -54,7 +55,7 @@ class Meta(override val id: String,
   }
 
   def insert(data: Seq[Pointer])(implicit ctx: Context): (Boolean, Int) = {
-    if(isFull()) return false -> 0
+    /*if(isFull()) return false -> 0
 
     val n = Math.min(data.length, MAX - pointers.length)
     val slice = data.slice(0, n)
@@ -67,20 +68,19 @@ class Meta(override val id: String,
 
     setPointers()
 
-    true -> n
-  }
+    true -> n*/
 
-  def remove(data: Seq[Bytes])(implicit ctx: Context): (Boolean, Int) = {
-    if(isEmpty()) return false -> 0
-
-    if(data.exists{k1 => !pointers.exists{case (k, _) => ord.equiv(k, k1)}}){
-      return false -> 0
-    }
-
-    pointers = pointers.filterNot{case (k, _) => data.exists(ord.equiv(_, k))}
+    pointers = pointers ++ data
+    pointers = pointers.sortBy(_._1)
 
     setPointers()
 
+    true -> data.length
+  }
+
+  def remove(data: Seq[Bytes])(implicit ctx: Context): (Boolean, Int) = {
+    pointers = pointers.filterNot{case (k, _) => data.exists(ord.equiv(_, k))}
+    setPointers()
     true -> data.length
   }
 
@@ -90,7 +90,7 @@ class Meta(override val id: String,
     p
   }
 
-  def update(data: Seq[Pointer])(implicit ctx: Context): (Boolean, Int) = {
+  /*def update(data: Seq[Pointer])(implicit ctx: Context): (Boolean, Int) = {
 
     val len = pointers.length
 
@@ -105,10 +105,14 @@ class Meta(override val id: String,
     }
 
     true -> data.length
-  }
+  }*/
 
-  override def isFull(): Boolean = pointers.length == MAX
-  override def hasMinimum(): Boolean = pointers.length >= MIN
+  override def remaining: Int = MAX_SIZE - size
+  override def length: Int = pointers.length
+  override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
+
+  override def isFull(): Boolean = remaining < MAX_TUPLE_SIZE
+  override def hasMinimum(): Boolean = pointers.length >= MIN_LENGTH
   override def isEmpty(): Boolean = pointers.isEmpty
 
   override def last: Bytes = pointers.last._1
@@ -116,7 +120,7 @@ class Meta(override val id: String,
   def copy()(implicit ctx: Context): Meta = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
-    val copy = new Meta(UUID.randomUUID.toString, MIN, MAX)
+    val copy = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
 
     ctx.blocks += copy.id -> copy
     ctx.parents += copy.id -> ctx.parents(id)
@@ -128,7 +132,7 @@ class Meta(override val id: String,
   }
 
   def split()(implicit ctx: Context): Meta = {
-    val right = new Meta(UUID.randomUUID.toString, MIN, MAX)
+    val right = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
 
     ctx.blocks += right.id -> right
 
@@ -143,10 +147,10 @@ class Meta(override val id: String,
     right
   }
 
-  def canBorrowTo(target: Meta): Boolean = pointers.length - (MIN - target.pointers.length) >= MIN
+  def canBorrowTo(target: Meta): Boolean = pointers.length - (MIN_LENGTH - length) >= MIN_LENGTH
 
   def borrowLeftTo(target: Meta)(implicit ctx: Context): Meta = {
-    val n = MIN - target.pointers.length
+    val n = MIN_LENGTH - target.pointers.length
     val start = pointers.length - n
 
     target.pointers = pointers.slice(start, pointers.length) ++ target.pointers
@@ -159,7 +163,7 @@ class Meta(override val id: String,
   }
 
   def borrowRightTo(target: Meta)(implicit ctx: Context): Meta = {
-    val n = MIN - target.pointers.length
+    val n = MIN_LENGTH - target.pointers.length
     val len = pointers.length
 
     target.pointers = target.pointers ++ pointers.slice(0, n)

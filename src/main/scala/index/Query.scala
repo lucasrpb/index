@@ -166,8 +166,20 @@ object Query {
     start match {
       case None => Seq.empty[Tuple]
       case Some(id) => cache.get(id) match {
-        case leaf: Leaf => leaf.inOrder()
-        case meta: Meta => meta.inOrder().foldLeft(Seq.empty[Tuple]) { case (b, (_, n)) =>
+        case leaf: Leaf =>
+
+          if((root.isDefined && !leaf.id.equals(root.get))){
+            assert(leaf.hasMinimum() && leaf.size <= leaf.MAX_SIZE)
+          }
+
+          leaf.inOrder()
+        case meta: Meta =>
+
+          if((root.isDefined && !meta.id.equals(root.get))){
+            assert(meta.hasMinimum() && meta.size <= meta.MAX_SIZE)
+          }
+
+          meta.inOrder().foldLeft(Seq.empty[Tuple]) { case (b, (_, n)) =>
             b ++ inOrder(Some(n), root)
           }
       }

@@ -3,8 +3,13 @@ package index
 import java.util.UUID
 
 class Index(val ROOT: Option[String],
-            val MIN: Int,
-            val MAX: Int)(implicit val ord: Ordering[Bytes], cache: Cache){
+            val SIZE: Int,
+            val TUPLE_SIZE: Int)(implicit val ord: Ordering[Bytes], cache: Cache){
+
+  val LEAF_MIN_LENGTH = (SIZE/TUPLE_SIZE)/2
+
+  val META_TUPLE_SIZE = TUPLE_SIZE + 36
+  val META_MIN_LENGTH = (SIZE/META_TUPLE_SIZE)/2
 
   implicit val ctx = new Context(ROOT)
 
@@ -15,7 +20,7 @@ class Index(val ROOT: Option[String],
         case leaf: Leaf => Some(leaf)
         case meta: Meta =>
 
-          val len = meta.pointers.length
+          val len = meta.length
           val pointers = meta.pointers
 
           for(i<-0 until len){
@@ -40,7 +45,7 @@ class Index(val ROOT: Option[String],
     p match {
       case p: Meta =>
 
-        if(p.pointers.length == 1){
+        if(p.length == 1){
           val c = p.pointers(0)._2
           ctx.root = Some(c)
           ctx.parents += c -> (None, 0)
@@ -75,7 +80,7 @@ class Index(val ROOT: Option[String],
 
     println(s"tree is empty ! Creating first leaf...")
 
-    val leaf = new Leaf(UUID.randomUUID.toString, MIN, MAX)
+    val leaf = new Leaf(UUID.randomUUID.toString, TUPLE_SIZE, LEAF_MIN_LENGTH, SIZE)
 
     ctx.blocks += leaf.id -> leaf
     ctx.parents += leaf.id -> (None, 0)
@@ -118,7 +123,7 @@ class Index(val ROOT: Option[String],
 
         println(s"new level...")
 
-        val r = new Meta(UUID.randomUUID.toString, MIN, MAX)
+        val r = new Meta(UUID.randomUUID.toString, META_TUPLE_SIZE, META_MIN_LENGTH, SIZE)
 
         ctx.blocks += r.id -> r
         ctx.parents += r.id -> (None, 0)
@@ -160,6 +165,12 @@ class Index(val ROOT: Option[String],
   }
 
   def insert(data: Seq[Tuple]): (Boolean, Int) = {
+
+    if(data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE)){
+      println(s"MAX TUPLE SIZE :(")
+      return false -> 0
+    }
+
     val sorted = data.sortBy(_._1)
 
     if(sorted.exists{case (k, _) => data.count{case (k1, _) => ord.equiv(k, k1)} > 1}){
@@ -458,7 +469,29 @@ class Index(val ROOT: Option[String],
     true -> size
   }
 
+
+  def update(leaf: Leaf, data: Seq[Tuple]): (Boolean, Int) = {
+    val left = leaf.copy()
+
+    if(left.isFull()){
+      val right = left.split()
+      return handleParent(left, right) -> 0
+    }
+
+    val (ok, n) = left.update(data)
+
+    if(!ok) return false -> 0
+
+    recursiveCopy(left) -> n
+  }
+
   def update(data: Seq[Tuple]): (Boolean, Int) = {
+
+    if(data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE)){
+      println(s"UPDATE MAX TUPLE SIZE :(")
+      return false -> 0
+    }
+
     val sorted = data.sortBy(_._1)
 
     if(sorted.exists{case (k, _) => data.count{case (k1, _) => ord.equiv(k, k1)} > 1}){
@@ -480,12 +513,7 @@ class Index(val ROOT: Option[String],
           val idx = list.indexWhere {case (k, _) => ord.gt(k, leaf.last)}
           if(idx > 0) list = list.slice(0, idx)
 
-          val left = leaf.copy()
-
-          left.update(list) match {
-            case (true, count) => recursiveCopy(left) -> count
-            case _ => false -> 0
-          }
+          update(leaf, list)
       }
 
       if(!ok) return false -> 0

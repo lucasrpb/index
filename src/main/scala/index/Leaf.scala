@@ -4,8 +4,9 @@ import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 
 class Leaf(override val id: String,
-           override val MIN: Int,
-           override val MAX: Int)(implicit ord: Ordering[Bytes]) extends Block {
+           override val MAX_TUPLE_SIZE: Int,
+           override val MIN_LENGTH: Int,
+           override val MAX_SIZE: Int)(implicit ord: Ordering[Bytes]) extends Block {
 
   var tuples = ArrayBuffer.empty[Tuple]
 
@@ -24,11 +25,21 @@ class Leaf(override val id: String,
     find(k, pos + 1, end)
   }
 
-  def insert(data: Seq[Tuple]): (Boolean, Int) = {
-    if(isFull()) return false -> 0
+  def calculateSlice(data: Seq[Tuple]): Seq[Tuple] = {
+    val rem = remaining
 
-    val n = Math.min(data.length, MAX - tuples.length)
-    val slice = data.slice(0, n)
+    val acc = data.foldLeft(Seq.empty[Int]) { case (k, n) =>
+      if(k.length == 0) Seq(n._1.length + n._2.length) else  k :+ (k.last + n._1.length + n._2.length)
+    }
+
+    val pos = acc.lastIndexWhere(s => s <= rem)
+
+    data.slice(0, pos + 1)
+  }
+
+  def insert(data: Seq[Tuple]): (Boolean, Int) = {
+
+    val slice = calculateSlice(data)
 
     if(slice.exists{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
       return false -> 0
@@ -36,7 +47,7 @@ class Leaf(override val id: String,
 
     tuples = (tuples ++ slice).sortBy(_._1)
 
-    true -> n
+    true -> slice.length
   }
 
   def remove(data: Seq[Bytes]): (Boolean, Int) = {
@@ -52,20 +63,24 @@ class Leaf(override val id: String,
   }
 
   def update(data: Seq[Tuple]): (Boolean, Int) = {
-    if(!data.forall{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
+
+    tuples = tuples.filterNot{case (k, _) => data.exists{case (k1, _) => ord.equiv(k, k1)}}
+
+    val slice = calculateSlice(data)
+
+    if(!slice.forall{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
       return false -> 0
     }
 
-    tuples = tuples.filterNot{case (k, _) => data.exists{case (k1, _) => ord.equiv(k, k1)}}
-    tuples = (tuples ++ data).sortBy(_._1)
+    tuples = (tuples ++ slice).sortBy(_._1)
 
-    true -> data.length
+    true -> slice.length
   }
 
   def copy()(implicit ctx: Context): Leaf = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
-    val copy = new Leaf(UUID.randomUUID.toString, MIN, MAX)
+    val copy = new Leaf(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
 
     ctx.blocks += copy.id -> copy
     ctx.parents += copy.id -> ctx.parents(id)
@@ -76,7 +91,7 @@ class Leaf(override val id: String,
   }
 
   def split()(implicit ctx: Context): Leaf = {
-    val right = new Leaf(UUID.randomUUID.toString, MIN, MAX)
+    val right = new Leaf(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
 
     ctx.blocks += right.id -> right
 
@@ -88,21 +103,21 @@ class Leaf(override val id: String,
     right
   }
 
-  def canBorrowTo(target: Leaf): Boolean = tuples.length - (MIN - target.tuples.length) >= MIN
+  def canBorrowTo(target: Leaf): Boolean = length - (MIN_LENGTH - target.length) >= MIN_LENGTH
 
   def borrowLeftTo(target: Leaf): Leaf = {
-    val n = MIN - target.tuples.length
-    val start = tuples.length - n
+    val n = MIN_LENGTH - target.length
+    val start = length - n
 
-    target.tuples = tuples.slice(start, tuples.length) ++ target.tuples
+    target.tuples = tuples.slice(start, length) ++ target.tuples
     tuples = tuples.slice(0, start)
 
     target
   }
 
   def borrowRightTo(target: Leaf): Leaf = {
-    val n = MIN - target.tuples.length
-    val len = tuples.length
+    val n = MIN_LENGTH - target.length
+    val len = length
 
     target.tuples = target.tuples ++ tuples.slice(0, n)
     tuples = tuples.slice(n, len)
@@ -117,8 +132,12 @@ class Leaf(override val id: String,
 
   override def last: Bytes = tuples.last._1
 
-  override def isFull(): Boolean = tuples.length == MAX
-  override def hasMinimum(): Boolean = tuples.length >= MIN
+  override def remaining: Int = MAX_SIZE - size
+  override def length: Int = tuples.length
+  override def size: Int = tuples.map{case (k, v) => k.length + v.length}.sum
+
+  override def isFull(): Boolean = remaining < MAX_TUPLE_SIZE
+  override def hasMinimum(): Boolean = tuples.length >= MIN_LENGTH
   override def isEmpty(): Boolean = tuples.isEmpty
   def inOrder(): Seq[Tuple] = tuples.toSeq
 

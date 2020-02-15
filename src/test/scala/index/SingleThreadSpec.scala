@@ -29,20 +29,22 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 100
-    val MIN = 2
-    val MAX = 10
+    val iter = 1000
+    val SIZE = 4 * 1024
+    val TUPLE_SIZE = 64
+
+    val MAX_KEY_SIZE = TUPLE_SIZE/2
 
     def insert(): Unit = {
       val root = ref.get()
-      val index = new Index(root, MIN, MAX)
+      val index = new Index(root, SIZE, TUPLE_SIZE)
 
       val n = rand.nextInt(1, 1000)
 
       var list = Seq.empty[(Bytes, Bytes)]
 
       for(i<-0 until n){
-        val e = RandomStringUtils.randomAlphanumeric(rand.nextInt(1, 6)).getBytes()
+        val e = RandomStringUtils.randomAlphanumeric(rand.nextInt(1, MAX_KEY_SIZE)).getBytes()
         list = list :+ e -> e
       }
 
@@ -58,7 +60,7 @@ class SingleThreadSpec extends Retriable {
         else data
 
       val root = ref.get()
-      val index = new Index(root, MIN, MAX)
+      val index = new Index(root, SIZE, TUPLE_SIZE)
 
       if(index.remove(list.map(_._1))._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
         data = data.filterNot{case (k, _) => list.exists{case (k1, _) => ord.equiv(k, k1)}}
@@ -75,9 +77,9 @@ class SingleThreadSpec extends Retriable {
       list = if(list.length > 2) scala.util.Random.shuffle(list.slice(0, rand.nextInt(1, list.length)))
         else list
 
-      list = list.map{case (k, _) => k -> RandomStringUtils.randomAlphanumeric(1, 6).getBytes()}
+      list = list.map{case (k, _) => k -> RandomStringUtils.randomAlphanumeric(1, MAX_KEY_SIZE).getBytes()}
 
-      val index = new Index(root, MIN, MAX)
+      val index = new Index(root, SIZE, TUPLE_SIZE)
 
       if(index.update(list)._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
         data = data.filterNot{case (k, _) => list.exists{case (k1, _) => ord.equiv(k, k1)}}
@@ -86,7 +88,7 @@ class SingleThreadSpec extends Retriable {
     }
 
     for(i<-0 until iter){
-      rand.nextInt(1, 2) match {
+      rand.nextInt(1, 4) match {
         case 1 => insert()
         case 2 => remove()
         case _ => update()
