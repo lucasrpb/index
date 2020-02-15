@@ -1,8 +1,10 @@
 package index
 
+import scala.concurrent.Future
+
 trait Cache {
 
-  def get(id: String): Block
-  def save(ctx: Context): Boolean
+  def get(id: String): Future[Option[Block]]
+  def save(ctx: Context): Future[Boolean]
 
 }
