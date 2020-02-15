@@ -29,7 +29,7 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 1000
+    val iter = 100
     val MIN = 2
     val MAX = 10
 
