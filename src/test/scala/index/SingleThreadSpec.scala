@@ -44,8 +44,9 @@ class SingleThreadSpec extends Retriable {
       var list = Seq.empty[(Bytes, Bytes)]
 
       for(i<-0 until n){
-        val e = RandomStringUtils.randomAlphanumeric(rand.nextInt(1, MAX_KEY_SIZE)).getBytes()
-        list = list :+ e -> e
+        val k = RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - 2).getBytes()
+        val v = RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - k.length).getBytes()
+        list = list :+ k -> v
       }
 
       if(index.insert(list)._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
