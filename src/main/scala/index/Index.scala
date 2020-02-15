@@ -8,6 +8,7 @@ class Index(val ROOT: Option[String],
 
   val LEAF_MIN_LENGTH = (SIZE/TUPLE_SIZE)/2
 
+
   val META_TUPLE_SIZE = TUPLE_SIZE + 36
   val META_MIN_LENGTH = (SIZE/META_TUPLE_SIZE)/2
 
