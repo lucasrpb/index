@@ -166,7 +166,7 @@ object Query {
     }
   }*/
 
-  /*def inOrder(start: Option[String], root: Option[String])(implicit ec: ExecutionContext, cache: Cache): Future[Seq[Tuple]] = {
+  def inOrder(start: Option[String], root: Option[String])(implicit ec: ExecutionContext, cache: Cache): Future[Seq[Tuple]] = {
     start match {
       case None => Future.successful(Seq.empty[Tuple])
       case Some(id) => cache.get(id).flatMap {
@@ -190,31 +190,6 @@ object Query {
                 b ++ n
               }
         }
-      }
-    }
-  }*/
-
-  def inOrder(start: Option[String], root: Option[String])(implicit cache: Cache, ec: ExecutionContext): Seq[Tuple] = {
-    start match {
-      case None => Seq.empty[Tuple]
-      case Some(id) => Await.result(cache.get(id), 10 seconds).get match {
-        case leaf: Leaf =>
-
-          if((root.isDefined && !leaf.id.equals(root.get))){
-            assert(leaf.hasMinimum() && leaf.size <= leaf.MAX_SIZE)
-          }
-
-          leaf.inOrder()
-        case meta: Meta =>
-
-          if((root.isDefined && !meta.id.equals(root.get))){
-
-            assert(meta.hasMinimum() && meta.size <= meta.MAX_SIZE)
-          }
-
-          meta.inOrder().foldLeft(Seq.empty[Tuple]) { case (b, (_, n)) =>
-            b ++ inOrder(Some(n), root)
-          }
       }
     }
   }

@@ -49,13 +49,6 @@ class SingleThreadSpec extends Retriable {
         list = list :+ k -> v
       }
 
-      /*val task = for {
-        (ok1, _) <- index.insert(list)
-        ok2 <- if(ok1) cache.save(index.ctx) else Future.successful(false)
-      } yield {
-        if(ok2) ref.compareAndSet(root, index.ctx.root) else false
-      }*/
-
       val task =  index.insert(list).flatMap { case (ok, n) =>
         cache.save(index.ctx).map { ok =>
           ok && ref.compareAndSet(root, index.ctx.root)
@@ -111,7 +104,7 @@ class SingleThreadSpec extends Retriable {
     }
 
     val dsorted = data.sortBy(_._1)
-    val isorted = Query.inOrder(ref.get(), ref.get())
+    val isorted = Await.result(Query.inOrder(ref.get(), ref.get()), 10 seconds)
 
     /*Query.prettyPrint(ref.get)
 

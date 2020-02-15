@@ -67,17 +67,17 @@ class Index(val ROOT: Option[String],
     }
   }
 
-  def recursiveCopy(p: Block): Future[Boolean] = {
-
-    val (pid, pos) = ctx.parents(p.id)
+  def recursiveCopy(b: Block): Future[Boolean] = {
+    val (pid, pos) = ctx.parents(b.id)
 
     pid match {
-      case None => Future.successful(fixRoot(p))
+      case None => Future.successful(fixRoot(b))
       case Some(pid) => ctx.getMeta(pid).flatMap {
         case None => Future.successful(false)
         case Some(p) =>
           val parent = p.copy()
-          parent.setPointer(Seq(Tuple3(p.last, p.id, pos)))
+
+          parent.setPointer(Seq(Tuple3(b.last, b.id, pos)))
           recursiveCopy(parent)
       }
     }
@@ -168,8 +168,6 @@ class Index(val ROOT: Option[String],
     val (ok, n) = left.insert(data)
 
     if(!ok) return Future.successful(false -> 0)
-
-    println(s"passou ${data.map{case(k, v) =>new String(k)}}")
 
     recursiveCopy(left).map(_ -> n)
   }
