@@ -86,15 +86,31 @@ class SingleThreadSpec extends Retriable {
     }
 
     for(i<-0 until iter){
-      rand.nextInt(1, 4) match {
+      rand.nextInt(1, 2) match {
         case 1 => insert()
         case 2 => remove()
         case _ => update()
       }
     }
 
-    val dsorted = data.sortBy(_._1)
-    val isorted = Query.inOrder(ref.get(), ref.get())
+    val dsorted = data.sortBy(_._1).reverse
+    /*val isorted = Query.inOrder(ref.get(), ref.get())*/
+
+    Query.prettyPrint(ref.get)
+
+    var isorted = Seq.empty[Tuple]
+
+    implicit val ctx = new Context(ref.get())
+
+    var aux: Option[Leaf] = Query.last(ref.get())
+
+    while(aux.isDefined){
+      val b = aux.get
+      isorted = isorted ++ b.inOrder().reverse
+      aux = Query.previous(b)
+
+      //println(s"next: ${aux}")
+    }
 
     println(s"dsorted: ${dsorted.map{case (k, v) => new String(k) -> new String(v)}}\n")
     println(s"isorted: ${isorted.map{case (k, v) => new String(k) -> new String(v)}}\n")

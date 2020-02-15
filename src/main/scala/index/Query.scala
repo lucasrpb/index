@@ -52,7 +52,115 @@ object Query {
     levels.size -> num_data_blocks
   }
 
+  protected def getLeftMost(meta: Meta)(implicit ctx: Context): Option[Leaf] = {
+    meta.setPointers()
 
+    ctx.get(meta.pointers(0)._2) match {
+      case b: Leaf => Some(b)
+      case b: Meta => getLeftMost(b)
+    }
+  }
+
+  protected def getRightMost(meta: Meta)(implicit ctx: Context): Option[Leaf] = {
+    meta.setPointers()
+
+    ctx.get(meta.pointers(meta.pointers.length - 1)._2) match {
+      case b: Leaf => Some(b)
+      case b: Meta => getRightMost(b)
+    }
+  }
+
+  protected def grandpaNext(block: Meta)(implicit ctx: Context): Option[Leaf] = {
+    val (pid, pos) = ctx.parents(block.id)
+
+    pid match {
+      case None => None
+      case Some(id) =>
+        val parent = ctx.getMeta(id)
+
+        parent.setPointers()
+
+        if(pos + 1 < parent.pointers.length){
+          getLeftMost(ctx.getMeta(parent.pointers(pos + 1)._2))
+        } else {
+          grandpaNext(parent)
+        }
+    }
+  }
+
+  protected def grandpaPrevious(block: Meta)(implicit ctx: Context): Option[Leaf] = {
+    val (pid, pos) = ctx.parents(block.id)
+
+    pid match {
+      case None => None
+      case Some(id) =>
+        val parent = ctx.getMeta(id)
+
+        parent.setPointers()
+
+        if(pos - 1 >= 0){
+          getRightMost(ctx.getMeta(parent.pointers(pos - 1)._2))
+        } else {
+          grandpaPrevious(parent)
+        }
+    }
+  }
+
+  def first(s: Option[String])(implicit ctx: Context): Option[Leaf] = {
+    s match {
+      case None => None
+      case Some(id) => ctx.get(id) match {
+        case b: Leaf => Some(b)
+        case b: Meta => getLeftMost(b)
+      }
+    }
+  }
+
+  def last(s: Option[String])(implicit ctx: Context): Option[Leaf] = {
+    s match {
+      case None => None
+      case Some(id) => ctx.get(id) match {
+        case b: Leaf => Some(b)
+        case b: Meta => getRightMost(b)
+      }
+    }
+  }
+
+  def next(block: Leaf)(implicit ctx: Context): Option[Leaf] = {
+    val (pid, pos) = ctx.parents(block.id)
+
+    pid match {
+      case None => None
+      case Some(id) =>
+        val parent = ctx.getMeta(id)
+
+        parent.setPointers()
+
+        if(pos + 1 < parent.pointers.length){
+          Some(ctx.getLeaf(parent.pointers(pos + 1)._2))
+        } else {
+          grandpaNext(parent)
+        }
+    }
+  }
+
+  def previous(block: Leaf)(implicit ctx: Context): Option[Leaf] = {
+    val (pid, pos) = ctx.parents(block.id)
+
+    pid match {
+      case None => None
+      case Some(id) =>
+        val parent = ctx.getMeta(id)
+
+        parent.setPointers()
+
+        if(pos - 1 >= 0){
+          Some(ctx.getLeaf(parent.pointers(pos - 1)._2))
+        } else {
+          grandpaPrevious(parent)
+        }
+    }
+  }
 
   def inOrder(start: Option[String], root: Option[String])(implicit cache: Cache): Seq[Tuple] = {
     start match {

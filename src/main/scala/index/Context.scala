@@ -2,10 +2,15 @@ package index
 
 import scala.collection.concurrent.TrieMap
 
-class Context(var root: Option[String], val cache: Cache) {
+class Context(var root: Option[String])(implicit val cache: Cache) {
 
   val blocks = TrieMap.empty[String, Block]
   val parents = TrieMap.empty[String, (Option[String], Int)]
+
+  root match {
+    case Some(id) => parents.put(id, None -> 0)
+    case _ =>
+  }
 
   def get(id: String): Block = {
     blocks.get(id) match {

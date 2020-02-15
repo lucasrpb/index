@@ -6,7 +6,7 @@ class Index(val ROOT: Option[String],
             val MIN: Int,
             val MAX: Int)(implicit val ord: Ordering[Bytes], cache: Cache){
 
-  implicit val ctx = new Context(ROOT, cache)
+  implicit val ctx = new Context(ROOT)
 
   def find(k: Bytes, start: Option[String]): Option[Leaf] = {
     start match {
