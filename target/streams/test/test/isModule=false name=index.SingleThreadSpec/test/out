@@ -1,3 +1,15 @@
 [0m[[0m[0minfo[0m] [0m[0m[32mSingleThreadSpec:[0m[0m
 [0m[[0m[0minfo[0m] [0m[0m[32mindex data[0m[0m
-[0m[[0m[0minfo[0m] [0m[0m[32m- must be equal to list data[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m- must be equal to list data *** FAILED ***[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  java.lang.InterruptedException:[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1081)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1369)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at scala.concurrent.impl.Promise$DefaultPromise.tryAwait0(Promise.scala:205)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at scala.concurrent.impl.Promise$DefaultPromise.result(Promise.scala:225)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at scala.concurrent.Await$.$anonfun$result$1(package.scala:201)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at scala.concurrent.BlockContext$DefaultBlockContext$.blockOn(BlockContext.scala:62)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at scala.concurrent.Await$.result(package.scala:124)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at index.SingleThreadSpec.insert$1(SingleThreadSpec.scala:65)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at index.SingleThreadSpec.$anonfun$new$5(SingleThreadSpec.scala:106)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  at scala.collection.immutable.Range.foreach$mVc$sp(Range.scala:190)[0m[0m
+[0m[[0m[0minfo[0m] [0m[0m[31m  ...[0m[0m

@@ -1,8 +1,12 @@
 package index
 
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 object Query {
 
-  def prettyPrint(root: Option[String])(implicit cache: Cache): (Int, Int) = {
+  /*def prettyPrint(root: Option[String])(implicit cache: Cache): (Int, Int) = {
 
     val levels = scala.collection.mutable.Map[Int, scala.collection.mutable.ArrayBuffer[Block]]()
     var num_data_blocks = 0
@@ -160,12 +164,40 @@ object Query {
           grandpaPrevious(parent)
         }
     }
-  }
+  }*/
 
-  def inOrder(start: Option[String], root: Option[String])(implicit cache: Cache): Seq[Tuple] = {
+  /*def inOrder(start: Option[String], root: Option[String])(implicit ec: ExecutionContext, cache: Cache): Future[Seq[Tuple]] = {
+    start match {
+      case None => Future.successful(Seq.empty[Tuple])
+      case Some(id) => cache.get(id).flatMap {
+        case None => Future.successful(Seq.empty[Tuple])
+        case Some(block) => block match {
+          case leaf: Leaf =>
+
+            if((root.isDefined && !leaf.id.equals(root.get))){
+              assert(leaf.hasMinimum() && leaf.size <= leaf.MAX_SIZE)
+            }
+
+            Future.successful(leaf.inOrder())
+
+            case meta: Meta =>
+
+              if((root.isDefined && !meta.id.equals(root.get))){
+                assert(meta.hasMinimum() && meta.size <= meta.MAX_SIZE)
+              }
+
+              Future.foldLeft(meta.inOrder().map{case (k, b) => inOrder(Some(b), root)})(Seq.empty[Tuple]){ case (b, n) =>
+                b ++ n
+              }
+        }
+      }
+    }
+  }*/
+
+  def inOrder(start: Option[String], root: Option[String])(implicit cache: Cache, ec: ExecutionContext): Seq[Tuple] = {
     start match {
       case None => Seq.empty[Tuple]
-      case Some(id) => cache.get(id) match {
+      case Some(id) => Await.result(cache.get(id), 10 seconds).get match {
         case leaf: Leaf =>
 
           if((root.isDefined && !leaf.id.equals(root.get))){
@@ -176,6 +208,7 @@ object Query {
         case meta: Meta =>
 
           if((root.isDefined && !meta.id.equals(root.get))){
+
             assert(meta.hasMinimum() && meta.size <= meta.MAX_SIZE)
           }
 

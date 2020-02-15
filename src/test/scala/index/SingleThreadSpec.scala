@@ -29,7 +29,7 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 1000
+    val iter = 1
     val SIZE = 4 * 1024
     val TUPLE_SIZE = 64
 
@@ -39,7 +39,7 @@ class SingleThreadSpec extends Retriable {
       val root = ref.get()
       val index = new Index(root, SIZE, TUPLE_SIZE)
 
-      val n = rand.nextInt(1, 1000)
+      val n = 100//rand.nextInt(1, 1000)
 
       var list = Seq.empty[(Bytes, Bytes)]
 
@@ -49,12 +49,25 @@ class SingleThreadSpec extends Retriable {
         list = list :+ k -> v
       }
 
-      if(index.insert(list)._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
+      /*val task = for {
+        (ok1, _) <- index.insert(list)
+        ok2 <- if(ok1) cache.save(index.ctx) else Future.successful(false)
+      } yield {
+        if(ok2) ref.compareAndSet(root, index.ctx.root) else false
+      }*/
+
+      val task =  index.insert(list).flatMap { case (ok, n) =>
+        cache.save(index.ctx).map { ok =>
+          ok && ref.compareAndSet(root, index.ctx.root)
+        }
+      }
+
+      if(Await.result(task, 5 seconds)) {
         data = data ++ list
       }
     }
 
-    def remove(): Unit = {
+    /*def remove(): Unit = {
       if(data.isEmpty) return
 
       val list = if(data.length > 2) scala.util.Random.shuffle(data.slice(0, rand.nextInt(1, data.length)))
@@ -86,20 +99,21 @@ class SingleThreadSpec extends Retriable {
         data = data.filterNot{case (k, _) => list.exists{case (k1, _) => ord.equiv(k, k1)}}
         data = data ++ list
       }
-    }
+    }*/
 
     for(i<-0 until iter){
-      rand.nextInt(1, 4) match {
+      rand.nextInt(1, 2) match {
         case 1 => insert()
-        case 2 => remove()
-        case _ => update()
+        //case 2 => remove()
+        //case _ => update()
+        case _ =>
       }
     }
 
-    val dsorted = data.sortBy(_._1).reverse
-    /*val isorted = Query.inOrder(ref.get(), ref.get())*/
+    val dsorted = data.sortBy(_._1)
+    val isorted = Query.inOrder(ref.get(), ref.get())
 
-    Query.prettyPrint(ref.get)
+    /*Query.prettyPrint(ref.get)
 
     var isorted = Seq.empty[Tuple]
 
@@ -113,7 +127,7 @@ class SingleThreadSpec extends Retriable {
       aux = Query.previous(b)
 
       //println(s"next: ${aux}")
-    }
+    }*/
 
     println(s"dsorted: ${dsorted.map{case (k, v) => new String(k) -> new String(v)}}\n")
     println(s"isorted: ${isorted.map{case (k, v) => new String(k) -> new String(v)}}\n")

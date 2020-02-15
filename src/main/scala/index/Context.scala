@@ -1,8 +1,9 @@
 package index
 
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.{ExecutionContext, Future}
 
-class Context(var root: Option[String])(implicit val cache: Cache) {
+class Context(var root: Option[String])(implicit val ec: ExecutionContext, cache: Cache) {
 
   val blocks = TrieMap.empty[String, Block]
   val parents = TrieMap.empty[String, (Option[String], Int)]
@@ -12,19 +13,19 @@ class Context(var root: Option[String])(implicit val cache: Cache) {
     case _ =>
   }
 
-  def get(id: String): Block = {
+  def get(id: String): Future[Option[Block]] = {
     blocks.get(id) match {
       case None => cache.get(id)
-      case Some(block) => block
+      case Some(block) => Future.successful(Some(block))
     }
   }
 
-  def getLeaf(id: String): Leaf = {
-    get(id).asInstanceOf[Leaf]
+  def getLeaf(id: String): Future[Option[Leaf]] = {
+    get(id).map(_.map(_.asInstanceOf[Leaf]))
   }
 
-  def getMeta(id: String): Meta = {
-    get(id).asInstanceOf[Meta]
+  def getMeta(id: String): Future[Option[Meta]] = {
+    get(id).map(_.map(_.asInstanceOf[Meta]))
   }
 
 }

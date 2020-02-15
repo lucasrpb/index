@@ -1,40 +1,43 @@
 package index
 
 import java.util.UUID
+import scala.concurrent.{ExecutionContext, Future}
 
 class Index(val ROOT: Option[String],
             val SIZE: Int,
-            val TUPLE_SIZE: Int)(implicit val ord: Ordering[Bytes], cache: Cache){
+            val TUPLE_SIZE: Int)(implicit val ord: Ordering[Bytes], val ec: ExecutionContext, cache: Cache){
 
   val LEAF_MIN_LENGTH = (SIZE/TUPLE_SIZE)/2
-
 
   val META_TUPLE_SIZE = TUPLE_SIZE + 36
   val META_MIN_LENGTH = (SIZE/META_TUPLE_SIZE)/2
 
   implicit val ctx = new Context(ROOT)
 
-  def find(k: Bytes, start: Option[String]): Option[Leaf] = {
+  def find(k: Bytes, start: Option[String]): Future[Option[Leaf]] = {
     start match {
-      case None => None
-      case Some(id) => ctx.get(id) match {
-        case leaf: Leaf => Some(leaf)
-        case meta: Meta =>
+      case None => Future.successful(None)
+      case Some(id) => ctx.get(id).flatMap {
+        case None => Future.successful(None)
+        case Some(block) => block match {
+          case leaf: Leaf => Future.successful(Some(leaf))
+          case meta: Meta =>
 
-          val len = meta.length
-          val pointers = meta.pointers
+            val len = meta.length
+            val pointers = meta.pointers
 
-          for(i<-0 until len){
-            val (_, c) = pointers(i)
-            ctx.parents += c -> (Some(meta.id), i)
-          }
+            for(i<-0 until len){
+              val (_, c) = pointers(i)
+              ctx.parents += c -> (Some(meta.id), i)
+            }
 
-          find(k, meta.findPath(k))
+            find(k, meta.findPath(k))
+        }
       }
     }
   }
 
-  def find(k: Bytes): Option[Leaf] = {
+  def find(k: Bytes): Future[Option[Leaf]] = {
     if(ctx.root.isDefined){
       ctx.parents += ctx.root.get -> (None, 0)
     }
@@ -64,21 +67,23 @@ class Index(val ROOT: Option[String],
     }
   }
 
-  def recursiveCopy(p: Block): Boolean = {
+  def recursiveCopy(p: Block): Future[Boolean] = {
+
     val (pid, pos) = ctx.parents(p.id)
 
     pid match {
-      case None => fixRoot(p)
-      case Some(pid) =>
-        val parent = ctx.getMeta(pid).copy()
-        parent.setPointer(Seq(Tuple3(p.last, p.id, pos)))
-
-        recursiveCopy(parent)
+      case None => Future.successful(fixRoot(p))
+      case Some(pid) => ctx.getMeta(pid).flatMap {
+        case None => Future.successful(false)
+        case Some(p) =>
+          val parent = p.copy()
+          parent.setPointer(Seq(Tuple3(p.last, p.id, pos)))
+          recursiveCopy(parent)
+      }
     }
   }
 
-  def insertEmpty(data: Seq[Tuple]): (Boolean, Int) = {
-
+  def insertEmpty(data: Seq[Tuple]): Future[(Boolean, Int)] = {
     println(s"tree is empty ! Creating first leaf...")
 
     val leaf = new Leaf(UUID.randomUUID.toString, TUPLE_SIZE, LEAF_MIN_LENGTH, SIZE)
@@ -88,12 +93,12 @@ class Index(val ROOT: Option[String],
 
     val (ok, n) = leaf.insert(data)
 
-    if(!ok) return false -> 0
+    if(!ok) return Future.successful(false -> 0)
 
-    recursiveCopy(leaf) -> n
+    recursiveCopy(leaf).map(_ -> n)
   }
 
-  def insertParent(left: Meta, prev: Block): Boolean = {
+  def insertParent(left: Meta, prev: Block): Future[Boolean] = {
     if(left.isFull()){
 
       println(s"parent is full! Splitting...")
@@ -116,7 +121,7 @@ class Index(val ROOT: Option[String],
     recursiveCopy(left)
   }
 
-  def handleParent(left: Block, right: Block): Boolean = {
+  def handleParent(left: Block, right: Block): Future[Boolean] = {
     val (pid, pos) = ctx.parents(left.id)
 
     pid match {
@@ -136,15 +141,17 @@ class Index(val ROOT: Option[String],
 
         recursiveCopy(r)
 
-      case Some(pid) =>
-        val parent = ctx.getMeta(pid).copy()
-
-        parent.setPointer(Seq((left.last, left.id, pos)))
-        insertParent(parent, right)
+      case Some(pid) => ctx.getMeta(pid).flatMap {
+        case None => Future.successful(false)
+        case Some(p) =>
+          val parent = p.copy()
+          parent.setPointer(Seq((left.last, left.id, pos)))
+          insertParent(parent, right)
+      }
     }
   }
 
-  def insert(leaf: Leaf, data: Seq[Tuple]): (Boolean, Int) = {
+  def insertLeaf(leaf: Leaf, data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
     val left = leaf.copy()
 
@@ -153,58 +160,64 @@ class Index(val ROOT: Option[String],
       println(s"leaf full ! Splitting...")
 
       val right = left.split()
-      return handleParent(left, right) -> 0
+      return handleParent(left, right).map(_ -> 0)
     }
 
     println(s"leaf not full! Inserting...")
 
     val (ok, n) = left.insert(data)
 
-    if(!ok) return false -> 0
+    if(!ok) return Future.successful(false -> 0)
 
-    recursiveCopy(left) -> n
+    println(s"passou ${data.map{case(k, v) =>new String(k)}}")
+
+    recursiveCopy(left).map(_ -> n)
   }
 
-  def insert(data: Seq[Tuple]): (Boolean, Int) = {
+  def insert(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
     if(data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE)){
       println(s"MAX TUPLE SIZE :(")
-      return false -> 0
+      return Future.successful(false -> 0)
     }
 
     val sorted = data.sortBy(_._1)
 
     if(sorted.exists{case (k, _) => data.count{case (k1, _) => ord.equiv(k, k1)} > 1}){
-      return false -> 0
+      return Future.successful(false -> 0)
     }
 
-    val size = sorted.length
+    val len = sorted.length
     var pos = 0
 
-    while(pos < size){
+    def insert(): Future[(Boolean, Int)] = {
+      if(pos == len) return Future.successful(true -> len)
 
-      var list = sorted.slice(pos, size)
+      var list = sorted.slice(pos, len)
       val (k, _) = list(0)
 
-      val (ok, n) = find(k) match {
+      find(k).flatMap {
         case None => insertEmpty(list)
-        case Some(p) =>
+        case Some(leaf) =>
 
-          val idx = list.indexWhere{case (k, _) => ord.gt(k, p.last)}
+          val idx = list.indexWhere {case (k, _) => ord.gt(k, leaf.last)}
           if(idx > 0) list = list.slice(0, idx)
 
-          insert(p, list)
+          insertLeaf(leaf, list)
+      }.flatMap { case (ok, n) =>
+        if(!ok) {
+          Future.successful(false -> 0)
+        } else {
+          pos += n
+          insert()
+        }
       }
-
-      if(!ok) return false -> 0
-
-      pos += n
     }
 
-    true -> size
+    insert()
   }
 
-  def merge(left: Meta, lpos: Int, right: Meta, rpos: Int, parent: Meta)(side: String): Boolean = {
+  /*def merge(left: Meta, lpos: Int, right: Meta, rpos: Int, parent: Meta)(side: String): Boolean = {
 
     left.merge(right)
 
@@ -523,6 +536,6 @@ class Index(val ROOT: Option[String],
     }
 
     true -> size
-  }
+  }*/
 
 }
