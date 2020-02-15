@@ -65,15 +65,6 @@ object Query {
     }
   }
 
-  protected def getRightMost(meta: Meta)(implicit ctx: Context): Option[Leaf] = {
-    meta.setPointers()
-
-    ctx.get(meta.pointers(meta.pointers.length - 1)._2) match {
-      case b: Leaf => Some(b)
-      case b: Meta => getRightMost(b)
-    }
-  }
-
   protected def grandpaNext(block: Meta)(implicit ctx: Context): Option[Leaf] = {
     val (pid, pos) = ctx.parents(block.id)
 
@@ -88,24 +79,6 @@ object Query {
           getLeftMost(ctx.getMeta(parent.pointers(pos + 1)._2))
         } else {
           grandpaNext(parent)
-        }
-    }
-  }
-
-  protected def grandpaPrevious(block: Meta)(implicit ctx: Context): Option[Leaf] = {
-    val (pid, pos) = ctx.parents(block.id)
-
-    pid match {
-      case None => None
-      case Some(id) =>
-        val parent = ctx.getMeta(id)
-
-        parent.setPointers()
-
-        if(pos - 1 >= 0){
-          getRightMost(ctx.getMeta(parent.pointers(pos - 1)._2))
-        } else {
-          grandpaPrevious(parent)
         }
     }
   }
@@ -146,25 +119,61 @@ object Query {
           grandpaNext(parent)
         }
     }
+  }*/
+
+  protected def getRightMost(meta: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
+    meta.setPointers()
+
+    ctx.get(meta.pointers(meta.pointers.length - 1)._2).flatMap {
+      case None => Future.successful(None)
+      case Some(b) => b match {
+        case leaf: Leaf => Future.successful(Some(leaf))
+        case meta: Meta => getRightMost(meta)
+      }
+    }
   }
 
-  def previous(block: Leaf)(implicit ctx: Context): Option[Leaf] = {
+  protected def grandpaPrevious(block: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     val (pid, pos) = ctx.parents(block.id)
 
     pid match {
-      case None => None
-      case Some(id) =>
-        val parent = ctx.getMeta(id)
+      case None => Future.successful(None)
+      case Some(id) => ctx.getMeta(id).flatMap {
+        case None => Future.successful(None)
+        case Some(parent) =>
+          parent.setPointers()
 
-        parent.setPointers()
-
-        if(pos - 1 >= 0){
-          Some(ctx.getLeaf(parent.pointers(pos - 1)._2))
-        } else {
-          grandpaPrevious(parent)
-        }
+          if(pos - 1 >= 0){
+            ctx.getMeta(parent.pointers(pos - 1)._2).flatMap {
+              case None => Future.successful(None)
+              case Some(meta) => getRightMost(meta)
+            }
+          } else {
+            grandpaPrevious(parent)
+          }
+      }
     }
-  }*/
+  }
+
+  def previous(block: Leaf)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
+    val (pid, pos) = ctx.parents(block.id)
+
+    pid match {
+      case None => Future.successful(None)
+      case Some(id) => ctx.getMeta(id).flatMap {
+        case None => Future.successful(None)
+        case Some(parent) =>
+
+          parent.setPointers()
+
+          if(pos - 1 >= 0){
+            ctx.getLeaf(parent.pointers(pos - 1)._2)
+          } else {
+            grandpaPrevious(parent)
+          }
+      }
+    }
+  }
 
   def inOrder(start: Option[String], root: Option[String])(implicit ec: ExecutionContext, cache: Cache): Future[Seq[Tuple]] = {
     start match {
@@ -186,39 +195,12 @@ object Query {
                 assert(meta.hasMinimum() && meta.size <= meta.MAX_SIZE)
               }
 
-              Future.foldLeft(meta.inOrder().map{case (k, b) => inOrder(Some(b), root)})(Seq.empty[Tuple]){ case (b, n) =>
+              Future.foldLeft(meta.inOrder().map{case (_, b) => inOrder(Some(b), root)})(Seq.empty[Tuple]){ case (b, n) =>
                 b ++ n
               }
         }
       }
     }
   }
-
-  /*def inOrder(start: Option[String], root: Option[String])(implicit store: Cache, ec: ExecutionContext): Seq[Tuple] = {
-    start match {
-      case None => Seq.empty[Tuple]
-      case Some(id) => Await.result(store.get(id), 10 seconds).get match {
-        case leaf: Leaf =>
-
-          if((root.isDefined && !leaf.id.equals(root.get))){
-            assert(leaf.hasMinimum() &&
-              leaf.size <= leaf.MAX_SIZE)
-          }
-
-          leaf.inOrder()
-        case meta: Meta =>
-
-          if((root.isDefined && !meta.id.equals(root.get))){
-
-            assert(meta.hasMinimum() &&
-              meta.size <= meta.MAX_SIZE)
-          }
-
-          meta.inOrder().foldLeft(Seq.empty[Tuple]) { case (b, (_, n)) =>
-            b ++ inOrder(Some(n), root)
-          }
-      }
-    }
-  }*/
 
 }
