@@ -8,8 +8,6 @@ class Leaf(override val id: String,
            override val MIN_LENGTH: Int,
            override val MAX_SIZE: Int)(implicit ord: Ordering[Bytes]) extends Block {
 
-  override type T = Leaf
-
   var tuples = ArrayBuffer.empty[Tuple]
 
   var next: Option[String] = None
@@ -27,7 +25,7 @@ class Leaf(override val id: String,
     find(k, pos + 1, end)
   }
 
-  def calculateSlice(data: Seq[Tuple]): Seq[Tuple] = {
+  /*def calculateSlice(data: Seq[Tuple]): Seq[Tuple] = {
     val rem = remaining
 
     val acc = data.foldLeft(Seq.empty[Int]) { case (k, n) =>
@@ -37,11 +35,12 @@ class Leaf(override val id: String,
     val pos = acc.lastIndexWhere(s => s <= rem)
 
     data.slice(0, pos + 1)
-  }
+  }*/
 
   def insert(data: Seq[Tuple]): (Boolean, Int) = {
 
-    val slice = calculateSlice(data)
+    val len = Math.min(data.length, MAX_SIZE - tuples.length)
+    val slice =  data.slice(0, len)//calculateSlice(data)
 
     if(slice.exists{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
       return false -> 0
@@ -68,7 +67,7 @@ class Leaf(override val id: String,
 
     tuples = tuples.filterNot{case (k, _) => data.exists{case (k1, _) => ord.equiv(k, k1)}}
 
-    val slice = calculateSlice(data)
+    val slice = data//calculateSlice(data)
 
     if(!slice.forall{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
       return false -> 0
@@ -107,7 +106,7 @@ class Leaf(override val id: String,
 
   override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = length - (MIN_LENGTH - target.length) >= MIN_LENGTH
 
-  override def borrowLeftTo(t: Block)(implicit ctx: Context): Leaf = {
+  override def borrowLeftTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Leaf]
     val n = MIN_LENGTH - target.length
     val start = length - n
@@ -118,7 +117,7 @@ class Leaf(override val id: String,
     target
   }
 
-  override def borrowRightTo(t: Block)(implicit ctx: Context): Leaf = {
+  override def borrowRightTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Leaf]
     val n = MIN_LENGTH - target.length
     val len = length
@@ -129,18 +128,18 @@ class Leaf(override val id: String,
     target
   }
 
-  override def merge(right: Block)(implicit ctx: Context): Leaf = {
+  override def merge(right: Block)(implicit ctx: Context): Block = {
     tuples = tuples ++ right.asInstanceOf[Leaf].tuples
     this
   }
 
   override def last: Bytes = tuples.last._1
 
-  override def remaining: Int = MAX_SIZE - size
+  //override def remaining: Int = MAX_SIZE - size
   override def length: Int = tuples.length
-  override def size: Int = tuples.map{case (k, v) => k.length + v.length}.sum
+  //override def size: Int = tuples.map{case (k, v) => k.length + v.length}.sum
 
-  override def isFull(): Boolean = remaining < MAX_TUPLE_SIZE
+  override def isFull(): Boolean = length == MAX_SIZE //remaining < MAX_TUPLE_SIZE
   override def hasMinimum(): Boolean = tuples.length >= MIN_LENGTH
   override def isEmpty(): Boolean = tuples.isEmpty
   def inOrder(): Seq[Tuple] = tuples.toSeq

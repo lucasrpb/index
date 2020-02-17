@@ -13,19 +13,19 @@ class Context(var root: Option[String])(implicit val ec: ExecutionContext, cache
     case _ =>
   }
 
-  def get(id: String): Future[Option[Block]] = {
+  def get[T <: Block](id: String): Future[Option[T]] = {
     blocks.get(id) match {
-      case None => cache.get(id)
-      case Some(block) => Future.successful(Some(block))
+      case None => cache.get[T](id)
+      case Some(block) => Future.successful(Some(block.asInstanceOf[T]))
     }
   }
 
-  def getLeaf(id: String): Future[Option[Leaf]] = {
+  /*def getLeaf(id: String): Future[Option[Leaf]] = {
     get(id).map(_.map(_.asInstanceOf[Leaf]))
   }
 
   def getMeta(id: String): Future[Option[Meta]] = {
     get(id).map(_.map(_.asInstanceOf[Meta]))
-  }
+  }*/
 
 }

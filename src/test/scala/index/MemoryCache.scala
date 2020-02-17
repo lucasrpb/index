@@ -6,8 +6,8 @@ import scala.concurrent.Future
 class MemoryCache extends Cache {
   val store = TrieMap.empty[String, Block]
 
-  override def get(id: String): Future[Option[Block]] = {
-    Future.successful(store.get(id))
+  override def get[T <: Block](id: String): Future[Option[T]] = {
+    Future.successful(store.get(id).map(_.asInstanceOf[T]))
   }
 
   override def save(ctx: Context): Future[Boolean] = {

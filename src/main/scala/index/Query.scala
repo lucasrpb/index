@@ -6,12 +6,12 @@ import scala.language.postfixOps
 
 object Query {
 
-  /*def prettyPrint(root: Option[String])(implicit cache: Cache): (Int, Int) = {
+  def prettyPrint(root: Option[String])(implicit cache: Cache, ec: ExecutionContext): Future[(Int, Int)] = {
 
     val levels = scala.collection.mutable.Map[Int, scala.collection.mutable.ArrayBuffer[Block]]()
     var num_data_blocks = 0
 
-    def inOrder(start: Block, level: Int): Unit = {
+    def inOrder(start: Block, level: Int): Future[Unit] = {
 
       val opt = levels.get(level)
       var l: scala.collection.mutable.ArrayBuffer[Block] = null
@@ -28,38 +28,36 @@ object Query {
           num_data_blocks += 1
           l += data
 
-        case meta: Meta =>
+          Future.successful({})
 
+        case meta: Meta =>
           l += meta
 
-          val length = meta.pointers.length
-          val pointers = meta.pointers
-
-          for(i<-0 until length){
-            inOrder(cache.get(pointers(i)._2), level + 1)
-          }
-
+          Future.traverse(meta.inOrder()){ case (_, id) =>
+            cache.get[Block](id).flatMap(b => inOrder(b.get, level + 1))
+          }.map(_ => {})
       }
     }
 
-    root match {
-      case Some(root) => inOrder(cache.get(root), 0)
-      case _ =>
-    }
+    (root match {
+      case Some(root) => cache.get[Block](root).flatMap{b => inOrder(b.get, 0)}
+      case _ => Future.successful()
+    }).map { _ =>
 
-    println("BEGIN BTREE:\n")
-    levels.keys.toSeq.sorted.foreach { case level =>
-      println(s"level[$level]: ${levels(level)}\n")
-    }
-    println("END BTREE\n")
+      println("BEGIN BTREE:\n")
+      levels.keys.toSeq.sorted.foreach { case level =>
+        println(s"level[$level]: ${levels(level)}\n")
+      }
+      println("END BTREE\n")
 
-    levels.size -> num_data_blocks
-  }*/
+      levels.size -> num_data_blocks
+    }
+  }
 
   def first(s: Option[String])(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     s match {
       case None => Future.successful(None)
-      case Some(id) => ctx.get(id).flatMap {
+      case Some(id) => ctx.get[Block](id).flatMap {
         case None => Future.successful(None)
         case Some(block) => block match {
           case b: Leaf => Future.successful(Some(b))
@@ -72,7 +70,7 @@ object Query {
   def last(s: Option[String])(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     s match {
       case None => Future.successful(None)
-      case Some(id) => ctx.get(id).flatMap {
+      case Some(id) => ctx.get[Block](id).flatMap {
         case None => Future.successful(None)
         case Some(block) => block match {
           case b: Leaf => Future.successful(Some(b))
@@ -85,7 +83,7 @@ object Query {
   protected def getLeftMost(meta: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     meta.setPointers()
 
-    ctx.get(meta.pointers(0)._2).flatMap {
+    ctx.get[Block](meta.pointers(0)._2).flatMap {
       case None => Future.successful(None)
       case Some(b) => b match {
         case leaf: Leaf => Future.successful(Some(leaf))
@@ -99,14 +97,14 @@ object Query {
 
     pid match {
       case None => Future.successful(None)
-      case Some(id) => ctx.getMeta(id).flatMap {
+      case Some(id) => ctx.get[Meta](id).flatMap {
         case None => Future.successful(None)
         case Some(parent) =>
 
           parent.setPointers()
 
           if(pos + 1 < parent.pointers.length){
-            ctx.getMeta(parent.pointers(pos + 1)._2).flatMap {
+            ctx.get[Meta](parent.pointers(pos + 1)._2).flatMap {
               case None => Future.successful(None)
               case Some(meta) => getLeftMost(meta)
             }
@@ -122,14 +120,14 @@ object Query {
 
     pid match {
       case None => Future.successful(None)
-      case Some(id) => ctx.getMeta(id).flatMap {
+      case Some(id) => ctx.get[Meta](id).flatMap {
         case None => Future.successful(None)
         case Some(parent) =>
 
           parent.setPointers()
 
           if(pos + 1 < parent.pointers.length){
-            ctx.getLeaf(parent.pointers(pos + 1)._2)
+            ctx.get[Leaf](parent.pointers(pos + 1)._2)
           } else {
             grandpaNext(parent)
           }
@@ -140,7 +138,7 @@ object Query {
   protected def getRightMost(meta: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     meta.setPointers()
 
-    ctx.get(meta.pointers(meta.pointers.length - 1)._2).flatMap {
+    ctx.get[Block](meta.pointers(meta.pointers.length - 1)._2).flatMap {
       case None => Future.successful(None)
       case Some(b) => b match {
         case leaf: Leaf => Future.successful(Some(leaf))
@@ -154,13 +152,13 @@ object Query {
 
     pid match {
       case None => Future.successful(None)
-      case Some(id) => ctx.getMeta(id).flatMap {
+      case Some(id) => ctx.get[Meta](id).flatMap {
         case None => Future.successful(None)
         case Some(parent) =>
           parent.setPointers()
 
           if(pos - 1 >= 0){
-            ctx.getMeta(parent.pointers(pos - 1)._2).flatMap {
+            ctx.get[Meta](parent.pointers(pos - 1)._2).flatMap {
               case None => Future.successful(None)
               case Some(meta) => getRightMost(meta)
             }
@@ -176,14 +174,14 @@ object Query {
 
     pid match {
       case None => Future.successful(None)
-      case Some(id) => ctx.getMeta(id).flatMap {
+      case Some(id) => ctx.get[Meta](id).flatMap {
         case None => Future.successful(None)
         case Some(parent) =>
 
           parent.setPointers()
 
           if(pos - 1 >= 0){
-            ctx.getLeaf(parent.pointers(pos - 1)._2)
+            ctx.get[Leaf](parent.pointers(pos - 1)._2)
           } else {
             grandpaPrevious(parent)
           }
@@ -194,13 +192,20 @@ object Query {
   def inOrder(start: Option[String], root: Option[String])(implicit ec: ExecutionContext, cache: Cache): Future[Seq[Tuple]] = {
     start match {
       case None => Future.successful(Seq.empty[Tuple])
-      case Some(id) => cache.get(id).flatMap {
+      case Some(id) => cache.get[Block](id).flatMap {
         case None => Future.successful(Seq.empty[Tuple])
         case Some(block) => block match {
           case leaf: Leaf =>
 
             if((root.isDefined && !leaf.id.equals(root.get))){
-              assert(leaf.hasMinimum() && leaf.size <= leaf.MAX_SIZE)
+
+              //println(s"leaf min => ${leaf.length}/${leaf.MIN_LENGTH}")
+
+              assert(leaf.hasMinimum())
+
+              //println(s"leaf max => ${leaf.length}/${leaf.MAX_SIZE}")
+
+              assert(leaf.length <= leaf.MAX_SIZE)
             }
 
             Future.successful(leaf.inOrder())
@@ -208,7 +213,14 @@ object Query {
             case meta: Meta =>
 
               if((root.isDefined && !meta.id.equals(root.get))){
-                assert(meta.hasMinimum() && meta.size <= meta.MAX_SIZE)
+
+                //println(s"meta min => ${meta.length}/${meta.MIN_LENGTH}")
+
+                assert(meta.hasMinimum())
+
+                //println(s"meta max => ${meta.length}/${meta.MAX_SIZE}")
+
+                assert(meta.length <= meta.MAX_SIZE)
               }
 
               Future.foldLeft(meta.inOrder().map{case (_, b) => inOrder(Some(b), root)})(Seq.empty[Tuple]){ case (b, n) =>

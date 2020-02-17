@@ -1,23 +1,24 @@
 package index
 
 import java.util.UUID
+
 import scala.concurrent.{ExecutionContext, Future}
 
 class Index(val ROOT: Option[String],
             val SIZE: Int,
             val TUPLE_SIZE: Int)(implicit val ord: Ordering[Bytes], val ec: ExecutionContext, cache: Cache){
 
-  val LEAF_MIN_LENGTH = (SIZE/TUPLE_SIZE)/2
+  val LEAF_MIN_LENGTH = SIZE/2//(SIZE/TUPLE_SIZE)/2
 
-  val META_TUPLE_SIZE = TUPLE_SIZE + 36
-  val META_MIN_LENGTH = (SIZE/META_TUPLE_SIZE)/2
+  val META_TUPLE_SIZE = 0//TUPLE_SIZE + 36
+  val META_MIN_LENGTH = SIZE/2//(SIZE/META_TUPLE_SIZE)/2
 
   implicit val ctx = new Context(ROOT)
 
   def find(k: Bytes, start: Option[String]): Future[Option[Leaf]] = {
     start match {
       case None => Future.successful(None)
-      case Some(id) => ctx.get(id).flatMap {
+      case Some(id) => ctx.get[Block](id).flatMap {
         case None => Future.successful(None)
         case Some(block) => block match {
           case leaf: Leaf => Future.successful(Some(leaf))
@@ -67,12 +68,12 @@ class Index(val ROOT: Option[String],
     }
   }
 
-  def recursiveCopy(b: Block): Future[Boolean] = {
+  def recursiveCopy[T <: Block](b: T): Future[Boolean] = {
     val (pid, pos) = ctx.parents(b.id)
 
     pid match {
       case None => Future.successful(fixRoot(b))
-      case Some(pid) => ctx.getMeta(pid).flatMap {
+      case Some(pid) => ctx.get[Meta](pid).flatMap {
         case None => Future.successful(false)
         case Some(p) =>
           val parent = p.copy()
@@ -141,7 +142,7 @@ class Index(val ROOT: Option[String],
 
         recursiveCopy(r)
 
-      case Some(pid) => ctx.getMeta(pid).flatMap {
+      case Some(pid) => ctx.get[Meta](pid).flatMap {
         case None => Future.successful(false)
         case Some(p) =>
           val parent = p.copy()
@@ -174,7 +175,7 @@ class Index(val ROOT: Option[String],
 
   def insert(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
-    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
+    //assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 
@@ -212,17 +213,17 @@ class Index(val ROOT: Option[String],
     insert()
   }
 
-  def merge(left: Block, lpos: Int, right: Block, rpos: Int, parent: Meta)(side: String): Future[Boolean] = {
+  def merge[T <: Block](left: T, lpos: Int, right: T, rpos: Int, parent: Meta)(side: String): Future[Boolean] = {
 
-    left.merge(right)
+    left.merge(right.asInstanceOf[left.type])
+
+    assert(left.hasMinimum())
 
     parent.setPointer(Seq((left.last, left.id, lpos)))
     parent.removeAt(rpos)
 
     if(parent.hasMinimum()){
-
       println(s"${if(left.isInstanceOf[Leaf]) Console.BLUE_B else Console.RED_B}merging from $side ...${Console.RESET}\n")
-
       return recursiveCopy(parent)
     }
 
@@ -243,21 +244,29 @@ class Index(val ROOT: Option[String],
       return recursiveCopy(parent)
     }
 
-    ctx.getMeta(gopt.get).flatMap {
+    ctx.get[Meta](gopt.get).flatMap {
       case None => Future.successful(false)
       case Some(gparent) => borrow(parent, gparent.copy(), gpos)
     }
   }
 
-  def borrowFromRight(target: Block, left: Option[Block], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+  def borrowFromRight[T <: Block](target: T, left: Option[T], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
     if(ropt.isDefined){
-      return ctx.get(ropt.get).flatMap {
+      return ctx.get[T](ropt.get).flatMap {
         case None => Future.successful(false)
         case Some(rnode) =>
+
           if(rnode.canBorrowTo(target)){
             val right = rnode.copy()
 
+            println(s"bfr before ${right.length} target ${target.length} min ${right.MIN_LENGTH} tpe ${right.isInstanceOf[Leaf]}")
+
             right.borrowRightTo(target)
+
+            println(s"bfr after ${right.length}")
+
+            assert(right.hasMinimum())
+            assert(target.hasMinimum())
 
             parent.setPointer(Seq(
               Tuple3(target.last, target.id, pos),
@@ -276,16 +285,23 @@ class Index(val ROOT: Option[String],
     merge(left.get, pos - 1, target, pos, parent)("left")
   }
 
-  def borrowFromLeft(target: Block, lopt: Option[String], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+  def borrowFromLeft[T <: Block](target: T, lopt: Option[String], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
     if(lopt.isDefined){
-      return ctx.get(lopt.get).flatMap {
+      return ctx.get[T](lopt.get).flatMap {
         case None => Future.successful(false)
         case Some(lnode) =>
 
           if(lnode.canBorrowTo(target)){
             val left = lnode.copy()
 
+            println(s"bfl before ${left.length} target ${target.length} min ${left.MIN_LENGTH} tpe ${left.isInstanceOf[Leaf]}")
+
             left.borrowLeftTo(target)
+
+            println(s"bfl after ${left.length}")
+
+            assert(left.hasMinimum())
+            assert(target.hasMinimum())
 
             parent.setPointer(Seq(
               Tuple3(left.last, left.id, pos - 1),
@@ -304,7 +320,7 @@ class Index(val ROOT: Option[String],
     borrowFromRight(target, None, ropt, parent, pos)
   }
 
-  def borrow(target: Block, parent: Meta, pos: Int): Future[Boolean] = {
+  def borrow[T <: Block](target: T, parent: Meta, pos: Int): Future[Boolean] = {
 
     val lopt = parent.left(pos)
     val ropt = parent.right(pos)
@@ -351,7 +367,7 @@ class Index(val ROOT: Option[String],
       return recursiveCopy(target).map(_ -> n)
     }
 
-    ctx.getMeta(pid.get).flatMap {
+    ctx.get[Meta](pid.get).flatMap {
       case None => Future.successful(false -> 0)
       case Some(parent) => borrow(target, parent.copy(), pos).map(_ -> n)
     }
@@ -411,7 +427,7 @@ class Index(val ROOT: Option[String],
 
   def update(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
-    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
+    //assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 

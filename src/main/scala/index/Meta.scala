@@ -8,8 +8,6 @@ class Meta(override val id: String,
            override val MIN_LENGTH: Int,
            override val MAX_SIZE: Int)(implicit val ord: Ordering[Bytes]) extends Block {
 
-  override type T = Meta
-
   var pointers = ArrayBuffer.empty[Pointer]
 
   def find(k: Bytes, start: Int, end: Int): (Boolean, Int) = {
@@ -109,11 +107,11 @@ class Meta(override val id: String,
     true -> data.length
   }*/
 
-  override def remaining: Int = MAX_SIZE - size
+  //override def remaining: Int = MAX_SIZE - size
   override def length: Int = pointers.length
-  override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
+  //override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
 
-  override def isFull(): Boolean = remaining < MAX_TUPLE_SIZE
+  override def isFull(): Boolean = length == MAX_SIZE//remaining < MAX_TUPLE_SIZE
   override def hasMinimum(): Boolean = pointers.length >= MIN_LENGTH
   override def isEmpty(): Boolean = pointers.isEmpty
 
@@ -149,9 +147,10 @@ class Meta(override val id: String,
     right
   }
 
-  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = pointers.length - (MIN_LENGTH - length) >= MIN_LENGTH
+  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean =
+    pointers.length - (MIN_LENGTH - target.length) >= MIN_LENGTH
 
-  override def borrowLeftTo(t: Block)(implicit ctx: Context): Meta = {
+  override def borrowLeftTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Meta]
     val n = MIN_LENGTH - target.pointers.length
     val start = pointers.length - n
@@ -165,7 +164,7 @@ class Meta(override val id: String,
     target
   }
 
-  override def borrowRightTo(t: Block)(implicit ctx: Context): Meta = {
+  override def borrowRightTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Meta]
     val n = MIN_LENGTH - target.pointers.length
     val len = pointers.length
@@ -179,7 +178,7 @@ class Meta(override val id: String,
     target
   }
 
-  override def merge(right: Block)(implicit ctx: Context): Meta = {
+  override def merge(right: Block)(implicit ctx: Context): Block = {
     pointers = pointers ++ right.asInstanceOf[Meta].pointers
     setPointers()
     this

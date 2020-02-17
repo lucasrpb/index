@@ -2,7 +2,7 @@ package index
 
 trait Block {
 
-  type T <: Block
+ // type T = this.type
 
   val id: String
 
@@ -11,18 +11,18 @@ trait Block {
   val MAX_TUPLE_SIZE: Int
 
   def length: Int
-  def size: Int
-  def remaining: Int
+  //def size: Int
+  //def remaining: Int
 
   def last: Bytes
 
-  def split()(implicit ctx: Context): T
-  def copy()(implicit ctx: Context): T
+  def split()(implicit ctx: Context): Block
+  def copy()(implicit ctx: Context): Block
 
   def canBorrowTo(target: Block)(implicit ctx: Context): Boolean
-  def borrowLeftTo(target: Block)(implicit ctx: Context): T
-  def borrowRightTo(target: Block)(implicit ctx: Context): T
-  def merge(right: Block)(implicit ctx: Context): T
+  def borrowLeftTo(target: Block)(implicit ctx: Context): Block
+  def borrowRightTo(target: Block)(implicit ctx: Context): Block
+  def merge(right: Block)(implicit ctx: Context): Block
 
   def isFull(): Boolean
   def hasMinimum(): Boolean

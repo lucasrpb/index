@@ -4,7 +4,7 @@ import scala.concurrent.Future
 
 trait Cache {
 
-  def get(id: String): Future[Option[Block]]
+  def get[T <: Block](id: String): Future[Option[T]]
   def save(ctx: Context): Future[Boolean]
 
 }

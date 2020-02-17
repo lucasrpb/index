@@ -30,14 +30,14 @@ class SingleThreadSpec extends Retriable {
     var data = Seq.empty[Tuple]
 
     val iter = 100
-    val SIZE = 4 * 1024
+    val SIZE = 10
     val TUPLE_SIZE = 64
 
     def insert(): Unit = {
       val root = ref.get()
       val index = new Index(root, SIZE, TUPLE_SIZE)
 
-      val n = 100//rand.nextInt(1, 100)
+      val n = rand.nextInt(1, 100)
 
       var list = Seq.empty[(Bytes, Bytes)]
 
@@ -105,23 +105,19 @@ class SingleThreadSpec extends Retriable {
     }
 
     for(i<-0 until iter){
-      rand.nextInt(1, 3) match {
+      rand.nextInt(1, 4) match {
         case 1 => insert()
         case 2 => update()
         case _ => remove()
       }
     }
 
-    for(i<-0 until 100){
-      remove()
-    }
-
     val dsorted = data.sortBy(_._1)
     val isorted = Await.result(Query.inOrder(ref.get(), ref.get()), 10 seconds)
 
-    /*Query.prettyPrint(ref.get)
+    //Await.ready(Query.prettyPrint(ref.get), 10 seconds)
 
-    var isorted = Seq.empty[Tuple]
+    /*var isorted = Seq.empty[Tuple]
 
     implicit val ctx = new Context(ref.get())
 
