@@ -107,10 +107,10 @@ class SingleThreadSpec extends Retriable {
     }
 
     for(i<-0 until iter){
-      rand.nextInt(1, 4) match {
+      rand.nextInt(1, 6) match {
         case 1 => insert()
-        case 2 => remove()
-        case _ => update()
+        case 2 => update()
+        case _ => remove()
       }
     }
 
