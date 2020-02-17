@@ -1,5 +1,12 @@
-[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Meta.scala:150:116: value length1 is not a member of index.Block[0m
-[0m[[0m[31merror[0m] [0m[0mdid you mean length?[0m
-[0m[[0m[31merror[0m] [0m[0m  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = pointers.length - (MIN_LENGTH - target.length1) >= MIN_LENGTH[0m
-[0m[[0m[31merror[0m] [0m[0m                                                                                                                   ^[0m
-[0m[[0m[31merror[0m] [0m[0mone error found[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Index.scala:92:16: not enough arguments for constructor Leaf: (id: String, MAX_TUPLE_SIZE: Int, MIN_LENGTH: Int, MAX_LENGTH: Int, MAX_SIZE: Int)(implicit ord: Ordering[index.Bytes])index.Leaf.[0m
+[0m[[0m[31merror[0m] [0m[0mUnspecified value parameter MAX_SIZE.[0m
+[0m[[0m[31merror[0m] [0m[0m    val leaf = new Leaf(UUID.randomUUID.toString, TUPLE_SIZE, LEAF_MIN_LENGTH, LEAF_MAX_LENGTH)[0m
+[0m[[0m[31merror[0m] [0m[0m               ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Index.scala:99:8: value unary_! is not a member of Any[0m
+[0m[[0m[31merror[0m] [0m[0m    if(!ok) return Future.successful(false -> 0)[0m
+[0m[[0m[31merror[0m] [0m[0m       ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\main\scala\index\Index.scala:148:17: not enough arguments for constructor Meta: (id: String, MAX_TUPLE_SIZE: Int, MIN_LENGTH: Int, MAX_LENGTH: Int, MAX_SIZE: Int)(implicit ord: Ordering[index.Bytes])index.Meta.[0m
+[0m[[0m[31merror[0m] [0m[0mUnspecified value parameter MAX_SIZE.[0m
+[0m[[0m[31merror[0m] [0m[0m        val r = new Meta(UUID.randomUUID.toString, META_TUPLE_SIZE, META_MIN_LENGTH, META_MAX_LENGTH)[0m
+[0m[[0m[31merror[0m] [0m[0m                ^[0m
+[0m[[0m[31merror[0m] [0m[0mthree errors found[0m

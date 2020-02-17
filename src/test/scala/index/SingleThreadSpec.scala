@@ -14,7 +14,7 @@ import scala.language.postfixOps
 
 class SingleThreadSpec extends Retriable {
 
-  override val times = 1
+  override val times = 100
 
   "index data " must "be equal to list data" in {
 
@@ -30,7 +30,7 @@ class SingleThreadSpec extends Retriable {
     var data = Seq.empty[Tuple]
 
     val iter = 100
-    val SIZE = 10
+    val SIZE = 512
     val TUPLE_SIZE = 64
 
     def insert(): Unit = {

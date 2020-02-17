@@ -1,17 +1,22 @@
 package index
 
 import java.util.UUID
-
 import scala.concurrent.{ExecutionContext, Future}
 
 class Index(val ROOT: Option[String],
             val SIZE: Int,
             val TUPLE_SIZE: Int)(implicit val ord: Ordering[Bytes], val ec: ExecutionContext, cache: Cache){
 
-  val LEAF_MIN_LENGTH = SIZE/2//(SIZE/TUPLE_SIZE)/2
+  val LEAF_MAX_LENGTH = (SIZE/TUPLE_SIZE)
+  val LEAF_MIN_LENGTH = LEAF_MAX_LENGTH/2
 
-  val META_TUPLE_SIZE = 0//TUPLE_SIZE + 36
-  val META_MIN_LENGTH = SIZE/2//(SIZE/META_TUPLE_SIZE)/2
+  assert(LEAF_MIN_LENGTH < LEAF_MAX_LENGTH)
+
+  val META_TUPLE_SIZE = TUPLE_SIZE + 36
+  val META_MAX_LENGTH = (SIZE/META_TUPLE_SIZE)
+  val META_MIN_LENGTH = META_MAX_LENGTH/2
+
+  assert(META_MIN_LENGTH < META_MAX_LENGTH)
 
   implicit val ctx = new Context(ROOT)
 
@@ -87,7 +92,7 @@ class Index(val ROOT: Option[String],
   def insertEmpty(data: Seq[Tuple]): Future[(Boolean, Int)] = {
     println(s"tree is empty ! Creating first leaf...")
 
-    val leaf = new Leaf(UUID.randomUUID.toString, TUPLE_SIZE, LEAF_MIN_LENGTH, SIZE)
+    val leaf = new Leaf(UUID.randomUUID.toString, TUPLE_SIZE, LEAF_MIN_LENGTH, LEAF_MAX_LENGTH, SIZE)
 
     ctx.blocks += leaf.id -> leaf
     ctx.parents += leaf.id -> (None, 0)
@@ -101,7 +106,6 @@ class Index(val ROOT: Option[String],
 
   def insertParent(left: Meta, prev: Block): Future[Boolean] = {
     if(left.isFull()){
-
       println(s"parent is full! Splitting...")
 
       val right = left.split()
@@ -112,12 +116,21 @@ class Index(val ROOT: Option[String],
         left.insert(Seq(prev.last -> prev.id))
       }
 
+      /*assert(ctx.parents(left.id)._1.isEmpty || left.hasMinimum())
+      assert(left.size <= left.MAX_SIZE)
+
+      assert(ctx.parents(right.id)._1.isEmpty || right.hasMinimum())
+      assert(right.size <= right.MAX_SIZE)*/
+
       return handleParent(left, right)
     }
 
     println(s"parent not full ! Inserting...")
 
     left.insert(Seq(prev.last -> prev.id))._1
+
+    /*assert(ctx.parents(left.id)._1.isEmpty || left.hasMinimum(), s"${left.length} ${left.MIN_LENGTH}")
+    assert(left.size <= left.MAX_SIZE)*/
 
     recursiveCopy(left)
   }
@@ -130,7 +143,7 @@ class Index(val ROOT: Option[String],
 
         println(s"new level...")
 
-        val r = new Meta(UUID.randomUUID.toString, META_TUPLE_SIZE, META_MIN_LENGTH, SIZE)
+        val r = new Meta(UUID.randomUUID.toString, META_TUPLE_SIZE, META_MIN_LENGTH, META_MAX_LENGTH, SIZE)
 
         ctx.blocks += r.id -> r
         ctx.parents += r.id -> (None, 0)
@@ -175,7 +188,7 @@ class Index(val ROOT: Option[String],
 
   def insert(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
-    //assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
+    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 
@@ -427,7 +440,7 @@ class Index(val ROOT: Option[String],
 
   def update(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
-    //assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
+    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 

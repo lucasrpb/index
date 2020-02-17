@@ -6,6 +6,7 @@ import scala.collection.mutable.ArrayBuffer
 class Meta(override val id: String,
            override val MAX_TUPLE_SIZE: Int,
            override val MIN_LENGTH: Int,
+           override val MAX_LENGTH: Int,
            override val MAX_SIZE: Int)(implicit val ord: Ordering[Bytes]) extends Block {
 
   var pointers = ArrayBuffer.empty[Pointer]
@@ -53,7 +54,7 @@ class Meta(override val id: String,
       ctx.parents += child -> (Some(id), i)
     }
   }
-
+  
   def insert(data: Seq[Pointer])(implicit ctx: Context): (Boolean, Int) = {
     /*if(isFull()) return false -> 0
 
@@ -107,11 +108,11 @@ class Meta(override val id: String,
     true -> data.length
   }*/
 
-  //override def remaining: Int = MAX_SIZE - size
+  override def remaining: Int = MAX_SIZE - size
   override def length: Int = pointers.length
-  //override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
+  override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
 
-  override def isFull(): Boolean = length == MAX_SIZE//remaining < MAX_TUPLE_SIZE
+  override def isFull(): Boolean = length == MAX_LENGTH
   override def hasMinimum(): Boolean = pointers.length >= MIN_LENGTH
   override def isEmpty(): Boolean = pointers.isEmpty
 
@@ -120,7 +121,7 @@ class Meta(override val id: String,
   override def copy()(implicit ctx: Context): Meta = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
-    val copy = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
+    val copy = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_LENGTH, MAX_SIZE)
 
     ctx.blocks += copy.id -> copy
     ctx.parents += copy.id -> ctx.parents(id)
@@ -132,7 +133,7 @@ class Meta(override val id: String,
   }
 
   override def split()(implicit ctx: Context): Meta = {
-    val right = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
+    val right = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_LENGTH, MAX_SIZE)
 
     ctx.blocks += right.id -> right
 
@@ -147,8 +148,7 @@ class Meta(override val id: String,
     right
   }
 
-  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean =
-    pointers.length - (MIN_LENGTH - target.length) >= MIN_LENGTH
+  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = pointers.length - (MIN_LENGTH - target.length) >= MIN_LENGTH
 
   override def borrowLeftTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Meta]

@@ -198,14 +198,8 @@ object Query {
           case leaf: Leaf =>
 
             if((root.isDefined && !leaf.id.equals(root.get))){
-
-              //println(s"leaf min => ${leaf.length}/${leaf.MIN_LENGTH}")
-
-              assert(leaf.hasMinimum())
-
-              //println(s"leaf max => ${leaf.length}/${leaf.MAX_SIZE}")
-
-              assert(leaf.length <= leaf.MAX_SIZE)
+              assert(leaf.hasMinimum(), s"leaf min => ${leaf.length}/${leaf.MIN_LENGTH}")
+              assert(leaf.size <= leaf.MAX_SIZE, s"leaf max => ${leaf.size}/${leaf.MAX_SIZE}")
             }
 
             Future.successful(leaf.inOrder())
@@ -214,13 +208,8 @@ object Query {
 
               if((root.isDefined && !meta.id.equals(root.get))){
 
-                //println(s"meta min => ${meta.length}/${meta.MIN_LENGTH}")
-
-                assert(meta.hasMinimum())
-
-                //println(s"meta max => ${meta.length}/${meta.MAX_SIZE}")
-
-                assert(meta.length <= meta.MAX_SIZE)
+                assert(meta.hasMinimum(), s"meta min => ${meta.length}/${meta.MIN_LENGTH}")
+                assert(meta.size <= meta.MAX_SIZE, s"meta max => ${meta.size}/${meta.MAX_SIZE}")
               }
 
               Future.foldLeft(meta.inOrder().map{case (_, b) => inOrder(Some(b), root)})(Seq.empty[Tuple]){ case (b, n) =>
