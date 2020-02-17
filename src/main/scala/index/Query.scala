@@ -54,72 +54,88 @@ object Query {
     println("END BTREE\n")
 
     levels.size -> num_data_blocks
+  }*/
+
+  def first(s: Option[String])(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
+    s match {
+      case None => Future.successful(None)
+      case Some(id) => ctx.get(id).flatMap {
+        case None => Future.successful(None)
+        case Some(block) => block match {
+          case b: Leaf => Future.successful(Some(b))
+          case b: Meta => getLeftMost(b)
+        }
+      }
+    }
   }
 
-  protected def getLeftMost(meta: Meta)(implicit ctx: Context): Option[Leaf] = {
+  def last(s: Option[String])(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
+    s match {
+      case None => Future.successful(None)
+      case Some(id) => ctx.get(id).flatMap {
+        case None => Future.successful(None)
+        case Some(block) => block match {
+          case b: Leaf => Future.successful(Some(b))
+          case b: Meta => getRightMost(b)
+        }
+      }
+    }
+  }
+
+  protected def getLeftMost(meta: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     meta.setPointers()
 
-    ctx.get(meta.pointers(0)._2) match {
-      case b: Leaf => Some(b)
-      case b: Meta => getLeftMost(b)
-    }
-  }
-
-  protected def grandpaNext(block: Meta)(implicit ctx: Context): Option[Leaf] = {
-    val (pid, pos) = ctx.parents(block.id)
-
-    pid match {
-      case None => None
-      case Some(id) =>
-        val parent = ctx.getMeta(id)
-
-        parent.setPointers()
-
-        if(pos + 1 < parent.pointers.length){
-          getLeftMost(ctx.getMeta(parent.pointers(pos + 1)._2))
-        } else {
-          grandpaNext(parent)
-        }
-    }
-  }
-
-  def first(s: Option[String])(implicit ctx: Context): Option[Leaf] = {
-    s match {
-      case None => None
-      case Some(id) => ctx.get(id) match {
-        case b: Leaf => Some(b)
-        case b: Meta => getLeftMost(b)
+    ctx.get(meta.pointers(0)._2).flatMap {
+      case None => Future.successful(None)
+      case Some(b) => b match {
+        case leaf: Leaf => Future.successful(Some(leaf))
+        case meta: Meta => getLeftMost(meta)
       }
     }
   }
 
-  def last(s: Option[String])(implicit ctx: Context): Option[Leaf] = {
-    s match {
-      case None => None
-      case Some(id) => ctx.get(id) match {
-        case b: Leaf => Some(b)
-        case b: Meta => getRightMost(b)
+  protected def grandpaNext(block: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
+    val (pid, pos) = ctx.parents(block.id)
+
+    pid match {
+      case None => Future.successful(None)
+      case Some(id) => ctx.getMeta(id).flatMap {
+        case None => Future.successful(None)
+        case Some(parent) =>
+
+          parent.setPointers()
+
+          if(pos + 1 < parent.pointers.length){
+            ctx.getMeta(parent.pointers(pos + 1)._2).flatMap {
+              case None => Future.successful(None)
+              case Some(meta) => getLeftMost(meta)
+            }
+          } else {
+            grandpaNext(parent)
+          }
       }
     }
   }
 
-  def next(block: Leaf)(implicit ctx: Context): Option[Leaf] = {
+  def next(block: Leaf)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     val (pid, pos) = ctx.parents(block.id)
 
     pid match {
-      case None => None
-      case Some(id) =>
-        val parent = ctx.getMeta(id)
+      case None => Future.successful(None)
+      case Some(id) => ctx.getMeta(id).flatMap {
+        case None => Future.successful(None)
+        case Some(parent) =>
 
-        parent.setPointers()
+          parent.setPointers()
 
-        if(pos + 1 < parent.pointers.length){
-          Some(ctx.getLeaf(parent.pointers(pos + 1)._2))
-        } else {
-          grandpaNext(parent)
-        }
+          if(pos + 1 < parent.pointers.length){
+            ctx.getLeaf(parent.pointers(pos + 1)._2)
+          } else {
+            grandpaNext(parent)
+          }
+      }
     }
-  }*/
+  }
 
   protected def getRightMost(meta: Meta)(implicit ctx: Context, ec: ExecutionContext): Future[Option[Leaf]] = {
     meta.setPointers()
