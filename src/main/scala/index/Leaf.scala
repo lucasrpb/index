@@ -26,21 +26,9 @@ class Leaf(override val id: String,
     find(k, pos + 1, end)
   }
 
-  /*def calculateSlice(data: Seq[Tuple]): Seq[Tuple] = {
-    val rem = remaining
-
-    val acc = data.foldLeft(Seq.empty[Int]) { case (k, n) =>
-      if(k.length == 0) Seq(n._1.length + n._2.length) else  k :+ (k.last + n._1.length + n._2.length)
-    }
-
-    val pos = acc.lastIndexWhere(s => s <= rem)
-
-    data.slice(0, pos + 1)
-  }*/
-
   def insert(data: Seq[Tuple]): (Boolean, Int) = {
     val n = Math.min(data.length, MAX_LENGTH - length)
-    val slice =  data.slice(0, n)//calculateSlice(data)
+    val slice =  data.slice(0, n)
 
     if(slice.exists{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
       return false -> 0
@@ -64,18 +52,15 @@ class Leaf(override val id: String,
   }
 
   def update(data: Seq[Tuple]): (Boolean, Int) = {
-
     tuples = tuples.filterNot{case (k, _) => data.exists{case (k1, _) => ord.equiv(k, k1)}}
 
-    val slice = data//calculateSlice(data)
-
-    if(!slice.forall{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
+    if(!data.forall{case (k, _) => tuples.exists{case (k1, _) => ord.equiv(k, k1)}}){
       return false -> 0
     }
 
-    tuples = (tuples ++ slice).sortBy(_._1)
+    tuples = (tuples ++ data).sortBy(_._1)
 
-    true -> slice.length
+    true -> data.length
   }
 
   override def copy()(implicit ctx: Context): Leaf = {

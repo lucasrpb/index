@@ -54,23 +54,8 @@ class Meta(override val id: String,
       ctx.parents += child -> (Some(id), i)
     }
   }
-  
+
   def insert(data: Seq[Pointer])(implicit ctx: Context): (Boolean, Int) = {
-    /*if(isFull()) return false -> 0
-
-    val n = Math.min(data.length, MAX - pointers.length)
-    val slice = data.slice(0, n)
-
-    if(slice.exists{case (k, _) => pointers.exists{case (k1, _) => ord.equiv(k, k1)}}){
-      return false -> 0
-    }
-
-    pointers = (pointers ++ slice).sortBy(_._1)
-
-    setPointers()
-
-    true -> n*/
-
     pointers = pointers ++ data
     pointers = pointers.sortBy(_._1)
 
@@ -90,23 +75,6 @@ class Meta(override val id: String,
     setPointers()
     p
   }
-
-  /*def update(data: Seq[Pointer])(implicit ctx: Context): (Boolean, Int) = {
-
-    val len = pointers.length
-
-    for(i<-0 until data.length){
-      val (k, child) = data(i)
-
-      val (found, idx) = find(k, 0, len - 1)
-
-      if(!found) return false -> 0
-
-      setPointer(Seq(Tuple3(k, child, idx)))
-    }
-
-    true -> data.length
-  }*/
 
   override def remaining: Int = MAX_SIZE - size
   override def length: Int = pointers.length
