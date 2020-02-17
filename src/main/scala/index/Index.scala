@@ -215,7 +215,7 @@ class Index(val ROOT: Option[String],
     insert()
   }
 
-  def borrowFromRight(target: Meta, left: Option[Meta], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+  /*def borrowFromRight(target: Meta, left: Option[Meta], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
     if(ropt.isDefined){
       return ctx.getMeta(ropt.get).flatMap {
         case None => Future.successful(false)
@@ -284,7 +284,7 @@ class Index(val ROOT: Option[String],
     }
 
     borrowFromLeft(target, lopt, ropt, parent, pos)
-  }
+  }*/
 
   def merge(left: Block, lpos: Int, right: Block, rpos: Int, parent: Meta)(side: String): Future[Boolean] = {
 
@@ -323,9 +323,9 @@ class Index(val ROOT: Option[String],
     }
   }
 
-  def borrowFromRight(target: Leaf, left: Option[Leaf], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+  def borrowFromRight(target: Block, left: Option[Block], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
     if(ropt.isDefined){
-      return ctx.getLeaf(ropt.get).flatMap {
+      return ctx.get(ropt.get).flatMap {
         case None => Future.successful(false)
         case Some(rnode) =>
           if(rnode.canBorrowTo(target)){
@@ -350,9 +350,9 @@ class Index(val ROOT: Option[String],
     merge(left.get, pos - 1, target, pos, parent)("left")
   }
 
-  def borrowFromLeft(target: Leaf, lopt: Option[String], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+  def borrowFromLeft(target: Block, lopt: Option[String], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
     if(lopt.isDefined){
-      return ctx.getLeaf(lopt.get).flatMap {
+      return ctx.get(lopt.get).flatMap {
         case None => Future.successful(false)
         case Some(lnode) =>
 
@@ -378,7 +378,7 @@ class Index(val ROOT: Option[String],
     borrowFromRight(target, None, ropt, parent, pos)
   }
 
-  def borrow(target: Leaf, parent: Meta, pos: Int): Future[Boolean] = {
+  def borrow(target: Block, parent: Meta, pos: Int): Future[Boolean] = {
 
     val lopt = parent.left(pos)
     val ropt = parent.right(pos)

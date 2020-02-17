@@ -8,6 +8,8 @@ class Leaf(override val id: String,
            override val MIN_LENGTH: Int,
            override val MAX_SIZE: Int)(implicit ord: Ordering[Bytes]) extends Block {
 
+  override type T = Leaf
+
   var tuples = ArrayBuffer.empty[Tuple]
 
   var next: Option[String] = None
@@ -77,7 +79,7 @@ class Leaf(override val id: String,
     true -> slice.length
   }
 
-  def copy()(implicit ctx: Context): Leaf = {
+  override def copy()(implicit ctx: Context): Leaf = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
     val copy = new Leaf(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
@@ -90,7 +92,7 @@ class Leaf(override val id: String,
     copy
   }
 
-  def split()(implicit ctx: Context): Leaf = {
+  override def split()(implicit ctx: Context): Leaf = {
     val right = new Leaf(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
 
     ctx.blocks += right.id -> right
@@ -103,9 +105,10 @@ class Leaf(override val id: String,
     right
   }
 
-  def canBorrowTo(target: Leaf): Boolean = length - (MIN_LENGTH - target.length) >= MIN_LENGTH
+  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = length - (MIN_LENGTH - target.length) >= MIN_LENGTH
 
-  def borrowLeftTo(target: Leaf): Leaf = {
+  override def borrowLeftTo(t: Block)(implicit ctx: Context): Leaf = {
+    val target = t.asInstanceOf[Leaf]
     val n = MIN_LENGTH - target.length
     val start = length - n
 
@@ -115,7 +118,8 @@ class Leaf(override val id: String,
     target
   }
 
-  def borrowRightTo(target: Leaf): Leaf = {
+  override def borrowRightTo(t: Block)(implicit ctx: Context): Leaf = {
+    val target = t.asInstanceOf[Leaf]
     val n = MIN_LENGTH - target.length
     val len = length
 
@@ -125,7 +129,7 @@ class Leaf(override val id: String,
     target
   }
 
-  override def merge(right: Block)(implicit ctx: Context): Block = {
+  override def merge(right: Block)(implicit ctx: Context): Leaf = {
     tuples = tuples ++ right.asInstanceOf[Leaf].tuples
     this
   }

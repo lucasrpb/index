@@ -7,7 +7,9 @@ class Meta(override val id: String,
            override val MAX_TUPLE_SIZE: Int,
            override val MIN_LENGTH: Int,
            override val MAX_SIZE: Int)(implicit val ord: Ordering[Bytes]) extends Block {
-  
+
+  override type T = Meta
+
   var pointers = ArrayBuffer.empty[Pointer]
 
   def find(k: Bytes, start: Int, end: Int): (Boolean, Int) = {
@@ -117,7 +119,7 @@ class Meta(override val id: String,
 
   override def last: Bytes = pointers.last._1
 
-  def copy()(implicit ctx: Context): Meta = {
+  override def copy()(implicit ctx: Context): Meta = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
     val copy = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
@@ -131,7 +133,7 @@ class Meta(override val id: String,
     copy
   }
 
-  def split()(implicit ctx: Context): Meta = {
+  override def split()(implicit ctx: Context): Meta = {
     val right = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_SIZE)
 
     ctx.blocks += right.id -> right
@@ -147,9 +149,10 @@ class Meta(override val id: String,
     right
   }
 
-  def canBorrowTo(target: Meta): Boolean = pointers.length - (MIN_LENGTH - length) >= MIN_LENGTH
+  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = pointers.length - (MIN_LENGTH - length) >= MIN_LENGTH
 
-  def borrowLeftTo(target: Meta)(implicit ctx: Context): Meta = {
+  override def borrowLeftTo(t: Block)(implicit ctx: Context): Meta = {
+    val target = t.asInstanceOf[Meta]
     val n = MIN_LENGTH - target.pointers.length
     val start = pointers.length - n
 
@@ -162,7 +165,8 @@ class Meta(override val id: String,
     target
   }
 
-  def borrowRightTo(target: Meta)(implicit ctx: Context): Meta = {
+  override def borrowRightTo(t: Block)(implicit ctx: Context): Meta = {
+    val target = t.asInstanceOf[Meta]
     val n = MIN_LENGTH - target.pointers.length
     val len = pointers.length
 
@@ -175,7 +179,7 @@ class Meta(override val id: String,
     target
   }
 
-  def merge(right: Block)(implicit ctx: Context): Meta = {
+  override def merge(right: Block)(implicit ctx: Context): Meta = {
     pointers = pointers ++ right.asInstanceOf[Meta].pointers
     setPointers()
     this
