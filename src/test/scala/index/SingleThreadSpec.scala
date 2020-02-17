@@ -29,17 +29,15 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 1000
+    val iter = 100
     val SIZE = 4 * 1024
     val TUPLE_SIZE = 64
-
-    val MAX_KEY_SIZE = TUPLE_SIZE/2
 
     def insert(): Unit = {
       val root = ref.get()
       val index = new Index(root, SIZE, TUPLE_SIZE)
 
-      val n = 100//rand.nextInt(1, 1000)
+      val n = 100//rand.nextInt(1, 100)
 
       var list = Seq.empty[(Bytes, Bytes)]
 
@@ -90,7 +88,7 @@ class SingleThreadSpec extends Retriable {
       list = if(list.length > 2) scala.util.Random.shuffle(list.slice(0, rand.nextInt(1, list.length)))
         else list
 
-      list = list.map{case (k, _) => k -> RandomStringUtils.randomAlphanumeric(1, MAX_KEY_SIZE).getBytes()}
+      list = list.map{case (k, _) => k -> RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - k.length).getBytes()}
 
       val index = new Index(root, SIZE, TUPLE_SIZE)
 
@@ -107,11 +105,15 @@ class SingleThreadSpec extends Retriable {
     }
 
     for(i<-0 until iter){
-      rand.nextInt(1, 6) match {
+      rand.nextInt(1, 3) match {
         case 1 => insert()
         case 2 => update()
         case _ => remove()
       }
+    }
+
+    for(i<-0 until 100){
+      remove()
     }
 
     val dsorted = data.sortBy(_._1)

@@ -174,10 +174,7 @@ class Index(val ROOT: Option[String],
 
   def insert(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
-    if(data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE)){
-      println(s"MAX TUPLE SIZE :(")
-      return Future.successful(false -> 0)
-    }
+    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 
@@ -224,7 +221,7 @@ class Index(val ROOT: Option[String],
 
     if(parent.hasMinimum()){
 
-      println(s"${Console.YELLOW_B}data merging from $side ...${Console.RESET}\n")
+      println(s"${if(left.isInstanceOf[Leaf]) Console.BLUE_B else Console.RED_B}merging from $side ...${Console.RESET}\n")
 
       return recursiveCopy(parent)
     }
@@ -267,7 +264,7 @@ class Index(val ROOT: Option[String],
               Tuple3(right.last, right.id, pos + 1)
             ))
 
-            println(s"${Console.BLUE_B}data borrowing from right...${Console.RESET}\n")
+            println(s"${if(target.isInstanceOf[Leaf]) Console.BLUE_B else Console.RED_B}borrowing from right...${Console.RESET}\n")
 
             recursiveCopy(parent)
           } else {
@@ -295,7 +292,7 @@ class Index(val ROOT: Option[String],
               Tuple3(target.last, target.id, pos)
             ))
 
-            println(s"${Console.BLUE_B}data borrowing from left...${Console.RESET}\n")
+            println(s"${if(target.isInstanceOf[Leaf]) Console.BLUE_B else Console.RED_B}borrowing from left...${Console.RESET}\n")
 
             recursiveCopy(parent)
           } else {
@@ -338,7 +335,7 @@ class Index(val ROOT: Option[String],
     if(!ok) return Future.successful(false -> 0)
 
     if(target.hasMinimum()){
-      println(s"removal from leaf...\n")
+      println(s"${Console.YELLOW_B}removal from leaf...${Console.RESET}\n")
       return recursiveCopy(target).map(_ -> n)
     }
 
@@ -414,10 +411,7 @@ class Index(val ROOT: Option[String],
 
   def update(data: Seq[Tuple]): Future[(Boolean, Int)] = {
 
-    if(data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE)){
-      println(s"UPDATE MAX TUPLE SIZE :(")
-      return Future.successful(false -> 0)
-    }
+    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 
