@@ -2,8 +2,6 @@ package index
 
 trait Block {
 
- // type T = this.type
-
   val id: String
 
   val MIN_LENGTH: Int
