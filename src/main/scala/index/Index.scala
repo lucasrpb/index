@@ -215,49 +215,63 @@ class Index(val ROOT: Option[String],
     insert()
   }
 
-  /*def merge(left: Meta, lpos: Int, right: Meta, rpos: Int, parent: Meta)(side: String): Boolean = {
+  def borrowFromRight(target: Meta, left: Option[Meta], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+    if(ropt.isDefined){
+      return ctx.getMeta(ropt.get).flatMap {
+        case None => Future.successful(false)
+        case Some(rnode) =>
+          if(rnode.canBorrowTo(target)){
+            val right = rnode.copy()
 
-    left.merge(right)
+            right.borrowRightTo(target)
 
-    parent.setPointer(Seq((left.last, left.id, lpos)))
-    parent.removeAt(rpos)
+            parent.setPointer(Seq(
+              Tuple3(target.last, target.id, pos),
+              Tuple3(right.last, right.id, pos + 1)
+            ))
 
-    if(parent.hasMinimum()){
+            println(s"${Console.RED}meta borrowing from right...\n${Console.RESET}")
 
-      println(s"${Console.YELLOW}meta merging from $side ...\n${Console.RESET}")
-
-      return recursiveCopy(parent)
-    }
-
-    val (gopt, gpos) = ctx.parents(parent.id)
-
-    if(gopt.isEmpty){
-
-      if(parent.isEmpty()){
-
-        println(s"one level less...\n")
-
-        ctx.parents += left.id -> (None, 0)
-        ctx.root = Some(left.id)
-
-        return true
+            recursiveCopy(parent)
+          } else {
+            merge(target, pos, rnode.copy(), pos + 1, parent)("right")
+          }
       }
-
-      return recursiveCopy(parent)
     }
 
-    val gparent = ctx.getMeta(gopt.get).copy()
-
-    borrow(parent, gparent, gpos)
+    merge(left.get, pos - 1, target, pos, parent)("left")
   }
 
-  def borrow(target: Meta, parent: Meta, pos: Int): Boolean = {
+  def borrowFromLeft(target: Meta, lopt: Option[String], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+    if(lopt.isDefined){
+      return ctx.getMeta(lopt.get).flatMap {
+        case None => Future.successful(false)
+        case Some(lnode) =>
+          if(lnode.canBorrowTo(target)){
+            val left = lnode.copy()
 
-    val lpos = pos - 1
-    val rpos = pos + 1
+            left.borrowLeftTo(target)
 
-    val lopt = parent.left(pos)//.map(ctx.getMeta(_).copy())
-    val ropt = parent.right(pos)//.map(ctx.getMeta(_).copy())
+            parent.setPointer(Seq(
+              Tuple3(left.last, left.id, pos - 1),
+              Tuple3(target.last, target.id, pos)
+            ))
+
+            println(s"${Console.RED}meta borrowing from left...\n${Console.RESET}")
+
+            recursiveCopy(parent)
+          } else {
+            borrowFromRight(target, Some(lnode.copy()), ropt, parent, pos)
+          }
+      }
+    }
+
+    borrowFromRight(target, None, ropt, parent, pos)
+  }
+
+  def borrow(target: Meta, parent: Meta, pos: Int): Future[Boolean] = {
+    val lopt = parent.left(pos)
+    val ropt = parent.right(pos)
 
     if(lopt.isEmpty && ropt.isEmpty){
 
@@ -266,53 +280,13 @@ class Index(val ROOT: Option[String],
       ctx.parents += target.id -> (None, 0)
       ctx.root = Some(target.id)
 
-      return true
+      return Future.successful(true)
     }
 
-    val lnode = lopt.map(ctx.getMeta(_))
-
-    if(lnode.isDefined && lnode.get.canBorrowTo(target)){
-
-      val left = lnode.get.copy()
-
-      left.borrowLeftTo(target)
-
-      parent.setPointer(Seq(
-        Tuple3(left.last, left.id, lpos),
-        Tuple3(target.last, target.id, pos)
-      ))
-
-      println(s"${Console.RED}meta borrowing from left...\n${Console.RESET}")
-
-      return recursiveCopy(parent)
-    }
-
-    val rnode = ropt.map(ctx.getMeta(_))
-
-    if(rnode.isDefined && rnode.get.canBorrowTo(target)){
-
-      val right = rnode.get.copy()
-
-      right.borrowRightTo(target)
-
-      parent.setPointer(Seq(
-        Tuple3(target.last, target.id, pos),
-        Tuple3(right.last, right.id, rpos)
-      ))
-
-      println(s"${Console.RED}meta borrowing from right...\n${Console.RESET}")
-
-      return recursiveCopy(parent)
-    }
-
-    if(lnode.isDefined){
-      return merge(lnode.get.copy(), lpos, target, pos, parent)("left")
-    }
-
-    merge(target, pos, rnode.get.copy(), rpos, parent)("right")
+    borrowFromLeft(target, lopt, ropt, parent, pos)
   }
 
-  def merge(left: Leaf, lpos: Int, right: Leaf, rpos: Int, parent: Meta)(side: String): Boolean = {
+  def merge(left: Block, lpos: Int, right: Block, rpos: Int, parent: Meta)(side: String): Future[Boolean] = {
 
     left.merge(right)
 
@@ -321,7 +295,7 @@ class Index(val ROOT: Option[String],
 
     if(parent.hasMinimum()){
 
-      println(s"data merging from $side ...\n")
+      println(s"${Console.YELLOW_B}data merging from $side ...${Console.RESET}\n")
 
       return recursiveCopy(parent)
     }
@@ -337,24 +311,77 @@ class Index(val ROOT: Option[String],
         ctx.parents += left.id -> (None, 0)
         ctx.root = Some(left.id)
 
-        return true
+        return Future.successful(true)
       }
 
       return recursiveCopy(parent)
     }
 
-    val gparent = ctx.getMeta(gopt.get).copy()
-
-    borrow(parent, gparent, gpos)
+    ctx.getMeta(gopt.get).flatMap {
+      case None => Future.successful(false)
+      case Some(gparent) => borrow(parent, gparent.copy(), gpos)
+    }
   }
 
-  def borrow(target: Leaf, parent: Meta, pos: Int): Boolean = {
+  def borrowFromRight(target: Leaf, left: Option[Leaf], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+    if(ropt.isDefined){
+      return ctx.getLeaf(ropt.get).flatMap {
+        case None => Future.successful(false)
+        case Some(rnode) =>
+          if(rnode.canBorrowTo(target)){
+            val right = rnode.copy()
 
-    val lpos = pos - 1
-    val rpos = pos + 1
+            right.borrowRightTo(target)
 
-    val lopt = parent.left(pos)//.map(ctx.getLeaf(_).copy())
-    val ropt = parent.right(pos)//.map(ctx.getLeaf(_).copy())
+            parent.setPointer(Seq(
+              Tuple3(target.last, target.id, pos),
+              Tuple3(right.last, right.id, pos + 1)
+            ))
+
+            println(s"${Console.BLUE_B}data borrowing from right...${Console.RESET}\n")
+
+            recursiveCopy(parent)
+          } else {
+            merge(target, pos, rnode.copy(), pos + 1, parent)("right")
+          }
+      }
+    }
+
+    merge(left.get, pos - 1, target, pos, parent)("left")
+  }
+
+  def borrowFromLeft(target: Leaf, lopt: Option[String], ropt: Option[String], parent: Meta, pos: Int): Future[Boolean] = {
+    if(lopt.isDefined){
+      return ctx.getLeaf(lopt.get).flatMap {
+        case None => Future.successful(false)
+        case Some(lnode) =>
+
+          if(lnode.canBorrowTo(target)){
+            val left = lnode.copy()
+
+            left.borrowLeftTo(target)
+
+            parent.setPointer(Seq(
+              Tuple3(left.last, left.id, pos - 1),
+              Tuple3(target.last, target.id, pos)
+            ))
+
+            println(s"${Console.BLUE_B}data borrowing from left...${Console.RESET}\n")
+
+            recursiveCopy(parent)
+          } else {
+            borrowFromRight(target, Some(lnode.copy()), ropt, parent, pos)
+          }
+      }
+    }
+
+    borrowFromRight(target, None, ropt, parent, pos)
+  }
+
+  def borrow(target: Leaf, parent: Meta, pos: Int): Future[Boolean] = {
+
+    val lopt = parent.left(pos)
+    val ropt = parent.right(pos)
 
     if(lopt.isEmpty && ropt.isEmpty){
 
@@ -362,73 +389,28 @@ class Index(val ROOT: Option[String],
 
       if(target.isEmpty()){
         ctx.root = None
-        return true
+        return Future.successful(true)
       }
 
       ctx.parents += target.id -> (None, 0)
       ctx.root = Some(target.id)
 
-      return true
+      return Future.successful(true)
     }
 
-    val lnode = lopt.map(ctx.getLeaf(_))
-
-    if(lnode.isDefined && lnode.get.canBorrowTo(target)){
-
-      val left = lnode.get.copy()
-
-      left.borrowLeftTo(target)
-
-      parent.setPointer(Seq(
-        Tuple3(left.last, left.id, lpos),
-        Tuple3(target.last, target.id, pos)
-      ))
-
-      println(s"data borrowing from left...\n")
-
-      return recursiveCopy(parent)
-    }
-
-    val rnode = ropt.map(ctx.getLeaf(_))
-
-    if(rnode.isDefined && rnode.get.canBorrowTo(target)){
-
-      val right = rnode.get.copy()
-
-      right.borrowRightTo(target)
-
-      parent.setPointer(Seq(
-        Tuple3(target.last, target.id, pos),
-        Tuple3(right.last, right.id, rpos)
-      ))
-
-      println(s"data borrowing from right...\n")
-
-      return recursiveCopy(parent)
-    }
-
-    if(lnode.isDefined){
-      return merge(lnode.get.copy(), lpos, target, pos, parent)("left")
-    }
-
-    merge(target, pos, rnode.get.copy(), rpos, parent)("right")
+    borrowFromLeft(target, lopt, ropt, parent, pos)
   }
 
-  def remove(leaf: Leaf, keys: Seq[Bytes]): (Boolean, Int) = {
+  def removeFromLeaf(leaf: Leaf, keys: Seq[Bytes]): Future[(Boolean, Int)] = {
     val target = leaf.copy()
-
-    println(s"removing ${keys.map(new String(_))} target: ${target}\n")
 
     val (ok, n) = target.remove(keys)
 
-    if(!ok) {
-      println(s"so sad!")
-      return false -> 0
-    }
+    if(!ok) return Future.successful(false -> 0)
 
     if(target.hasMinimum()){
       println(s"removal from leaf...\n")
-      return recursiveCopy(target) -> n
+      return recursiveCopy(target).map(_ -> n)
     }
 
     val (pid, pos) = ctx.parents(target.id)
@@ -437,49 +419,54 @@ class Index(val ROOT: Option[String],
 
       if(target.isEmpty()){
         ctx.root = None
-        return true -> n
+        return Future.successful(true -> n)
       }
 
-      return recursiveCopy(target) -> n
+      return recursiveCopy(target).map(_ -> n)
     }
 
-    val parent = ctx.getMeta(pid.get).copy()
-
-    borrow(target, parent, pos) -> n
+    ctx.getMeta(pid.get).flatMap {
+      case None => Future.successful(false -> 0)
+      case Some(parent) => borrow(target, parent.copy(), pos).map(_ -> n)
+    }
   }
 
-  def remove(keys: Seq[Bytes]): (Boolean, Int) = {
+  def remove(keys: Seq[Bytes]): Future[(Boolean, Int)] = {
     val sorted = keys.sorted
 
     if(sorted.exists{k => keys.count{k1 => ord.equiv(k, k1)} > 1}){
-      return false -> 0
+      return Future.successful(false -> 0)
     }
 
-    val size = sorted.length
+    val len = sorted.length
     var pos = 0
 
-    while(pos < size) {
+    def remove(): Future[(Boolean, Int)] = {
+      if(pos == len) return Future.successful(true -> len)
 
-      var list = sorted.slice(pos, size)
+      var list = sorted.slice(pos, len)
       val k = list(0)
 
-      val (ok, n) = find(k) match {
-        case None => false -> 0
+      find(k).flatMap {
+        case None => Future.successful(false -> 0)
         case Some(leaf) =>
 
           val idx = list.indexWhere {k => ord.gt(k, leaf.last)}
           list = if(idx > 0) list.slice(0, idx) else list
 
-          remove(leaf, list)
+          removeFromLeaf(leaf, list)
+      }.flatMap { case (ok, n) =>
+        if(!ok){
+          Future.successful(false -> 0)
+        } else {
+          pos += n
+          remove()
+        }
       }
-
-      if(!ok) return false -> 0
-
-      pos += n
     }
 
-    true -> size
-  }*/
+    remove()
+  }
 
   def updateLeaf(leaf: Leaf, data: Seq[Tuple]): Future[(Boolean, Int)] = {
     val left = leaf.copy()

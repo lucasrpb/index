@@ -16,6 +16,8 @@ trait Block {
   //def copy()(implicit ctx: Context): this.type
   //def split()(implicit ctx: Context): this.type
 
+  def merge(right: Block)(implicit ctx: Context): Block
+
   def isFull(): Boolean
   def hasMinimum(): Boolean
   def isEmpty(): Boolean

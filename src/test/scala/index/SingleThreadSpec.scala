@@ -29,7 +29,7 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 100
+    val iter = 1000
     val SIZE = 4 * 1024
     val TUPLE_SIZE = 64
 
@@ -60,7 +60,7 @@ class SingleThreadSpec extends Retriable {
       }
     }
 
-    /*def remove(): Unit = {
+    def remove(): Unit = {
       if(data.isEmpty) return
 
       val list = if(data.length > 2) scala.util.Random.shuffle(data.slice(0, rand.nextInt(1, data.length)))
@@ -69,10 +69,16 @@ class SingleThreadSpec extends Retriable {
       val root = ref.get()
       val index = new Index(root, SIZE, TUPLE_SIZE)
 
-      if(index.remove(list.map(_._1))._1 && ref.compareAndSet(root, index.ctx.root) && cache.save(index.ctx)){
+      val task =  index.remove(list.map(_._1)).flatMap { case (ok, n) =>
+        if(ok) cache.save(index.ctx).map { _ =>
+          ref.compareAndSet(root, index.ctx.root)
+        } else Future.successful(false)
+      }
+
+      if(Await.result(task, 5 seconds)) {
         data = data.filterNot{case (k, _) => list.exists{case (k1, _) => ord.equiv(k, k1)}}
       }
-    }*/
+    }
 
     def update(): Unit = {
 
@@ -103,7 +109,7 @@ class SingleThreadSpec extends Retriable {
     for(i<-0 until iter){
       rand.nextInt(1, 3) match {
         case 1 => insert()
-        //case 2 => remove()
+        case 2 => remove()
         case _ => update()
       }
     }

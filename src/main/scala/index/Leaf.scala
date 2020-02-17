@@ -125,8 +125,8 @@ class Leaf(override val id: String,
     target
   }
 
-  def merge(right: Leaf): Leaf = {
-    tuples = tuples ++ right.tuples
+  override def merge(right: Block)(implicit ctx: Context): Block = {
+    tuples = tuples ++ right.asInstanceOf[Leaf].tuples
     this
   }
 

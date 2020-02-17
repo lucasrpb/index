@@ -175,8 +175,8 @@ class Meta(override val id: String,
     target
   }
 
-  def merge(right: Meta)(implicit ctx: Context): Meta = {
-    pointers = pointers ++ right.pointers
+  def merge(right: Block)(implicit ctx: Context): Meta = {
+    pointers = pointers ++ right.asInstanceOf[Meta].pointers
     setPointers()
     this
   }
