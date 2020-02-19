@@ -14,7 +14,7 @@ import scala.language.postfixOps
 
 class SingleThreadSpec extends Retriable {
 
-  override val times = 100
+  override val times = 1
 
   "index data " must "be equal to list data" in {
 
@@ -29,9 +29,9 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = 100
-    val SIZE = 512
-    val TUPLE_SIZE = 64
+    val iter = rand.nextInt(1, 1000)
+    val SIZE = rand.nextInt(1024, 4 * 1024)
+    val TUPLE_SIZE = rand.nextInt(64, 256)
 
     def insert(): Unit = {
       val root = ref.get()
