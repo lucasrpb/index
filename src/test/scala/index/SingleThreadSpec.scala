@@ -29,9 +29,9 @@ class SingleThreadSpec extends Retriable {
     implicit val cache = new MemoryCache()
     var data = Seq.empty[Tuple]
 
-    val iter = rand.nextInt(1, 1000)
-    val SIZE = rand.nextInt(1024, 4 * 1024)
-    val TUPLE_SIZE = rand.nextInt(64, 256)
+    val iter = 100//rand.nextInt(1, 1000)
+    val SIZE = 300//rand.nextInt(1024, 4 * 1024)
+    val TUPLE_SIZE = 64//rand.nextInt(64, 256)
 
     def insert(): Unit = {
       val root = ref.get()
