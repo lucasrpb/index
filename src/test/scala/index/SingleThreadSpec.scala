@@ -30,20 +30,22 @@ class SingleThreadSpec extends Retriable {
     var data = Seq.empty[Tuple]
 
     val iter = 100//rand.nextInt(1, 1000)
-    val SIZE = 300//rand.nextInt(1024, 4 * 1024)
-    val TUPLE_SIZE = 64//rand.nextInt(64, 256)
+    val NR_ITEMS = 32
+
+    val KEY_SIZE = 32
+    val TUPLE_SIZE = KEY_SIZE * 2//rand.nextInt(64, 256)
 
     def insert(): Unit = {
       val root = ref.get()
-      val index = new Index(root, SIZE, TUPLE_SIZE)
+      val index = new Index(root, NR_ITEMS)
 
-      val n = rand.nextInt(1, 100)
+      val n = 100//rand.nextInt(1, 100)
 
       var list = Seq.empty[(Bytes, Bytes)]
 
       for(i<-0 until n){
-        val k = RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - 2).getBytes()
-        val v = RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - k.length).getBytes()
+        val k = RandomStringUtils.randomAlphanumeric(1, KEY_SIZE).getBytes()
+        val v = RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - KEY_SIZE).getBytes()
         list = list :+ k -> v
       }
 
@@ -65,7 +67,7 @@ class SingleThreadSpec extends Retriable {
         else data
 
       val root = ref.get()
-      val index = new Index(root, SIZE, TUPLE_SIZE)
+      val index = new Index(root, NR_ITEMS)
 
       val task =  index.remove(list.map(_._1)).flatMap { case (ok, n) =>
         if(ok) cache.save(index.ctx).map { _ =>
@@ -88,12 +90,12 @@ class SingleThreadSpec extends Retriable {
       list = if(list.length > 2) scala.util.Random.shuffle(list.slice(0, rand.nextInt(1, list.length)))
         else list
 
-      list = list.map{case (k, _) => k -> RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - k.length).getBytes()}
+      list = list.map{case (k, _) => k -> RandomStringUtils.randomAlphanumeric(1, TUPLE_SIZE - KEY_SIZE).getBytes()}
 
-      val index = new Index(root, SIZE, TUPLE_SIZE)
+      val index = new Index(root, NR_ITEMS)
 
       val task =  index.update(list).flatMap { case (ok, _) =>
-        if(ok) cache.save(index.ctx).map { ok2 =>
+        if(ok) cache.save(index.ctx).map { _ =>
           ref.compareAndSet(root, index.ctx.root)
         } else Future.successful(false)
       }

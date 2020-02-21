@@ -4,10 +4,8 @@ import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 
 class Meta(override val id: String,
-           override val MAX_TUPLE_SIZE: Int,
-           override val MIN_LENGTH: Int,
-           override val MAX_LENGTH: Int,
-           override val MAX_SIZE: Int)(implicit val ord: Ordering[Bytes]) extends Block {
+           override val MIN: Int,
+           override val MAX: Int)(implicit val ord: Ordering[Bytes]) extends Block {
 
   var pointers = ArrayBuffer.empty[Pointer]
 
@@ -76,20 +74,10 @@ class Meta(override val id: String,
     p
   }
 
-  override def remaining: Int = MAX_SIZE - size
-  override def length: Int = pointers.length
-  override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
-
-  override def isFull(): Boolean = length == MAX_LENGTH
-  override def hasMinimum(): Boolean = pointers.length >= MIN_LENGTH
-  override def isEmpty(): Boolean = pointers.isEmpty
-
-  override def last: Bytes = pointers.last._1
-
   override def copy()(implicit ctx: Context): Meta = {
     if(ctx.blocks.isDefinedAt(id)) return this
 
-    val copy = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_LENGTH, MAX_SIZE)
+    val copy = new Meta(UUID.randomUUID.toString, MIN, MAX)
 
     ctx.blocks += copy.id -> copy
     ctx.parents += copy.id -> ctx.parents(id)
@@ -101,7 +89,7 @@ class Meta(override val id: String,
   }
 
   override def split()(implicit ctx: Context): Meta = {
-    val right = new Meta(UUID.randomUUID.toString, MAX_TUPLE_SIZE, MIN_LENGTH, MAX_LENGTH, MAX_SIZE)
+    val right = new Meta(UUID.randomUUID.toString, MIN, MAX)
 
     ctx.blocks += right.id -> right
 
@@ -116,11 +104,11 @@ class Meta(override val id: String,
     right
   }
 
-  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = pointers.length - (MIN_LENGTH - target.length) >= MIN_LENGTH
+  override def canBorrowTo(target: Block)(implicit ctx: Context): Boolean = pointers.length - (MIN - target.length) >= MIN
 
   override def borrowLeftTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Meta]
-    val n = MIN_LENGTH - target.pointers.length
+    val n = MIN - target.pointers.length
     val start = pointers.length - n
 
     target.pointers = pointers.slice(start, pointers.length) ++ target.pointers
@@ -134,7 +122,7 @@ class Meta(override val id: String,
 
   override def borrowRightTo(t: Block)(implicit ctx: Context): Block = {
     val target = t.asInstanceOf[Meta]
-    val n = MIN_LENGTH - target.pointers.length
+    val n = MIN - target.pointers.length
     val len = pointers.length
 
     target.pointers = target.pointers ++ pointers.slice(0, n)
@@ -153,6 +141,15 @@ class Meta(override val id: String,
   }
 
   def inOrder(): Seq[Pointer] = pointers.toSeq
+
+  override def length: Int = pointers.length
+  override def size: Int = pointers.map{case (k, v) => k.length + v.length}.sum
+
+  override def isFull(): Boolean = length == MAX
+  override def hasMinimum(): Boolean = pointers.length >= MIN
+  override def isEmpty(): Boolean = pointers.isEmpty
+
+  override def last: Bytes = pointers.last._1
 
   override def toString: String = {
     "["+pointers.map{case (k, _) => new String(k)}.mkString(",")+"]"

@@ -1,0 +1,9 @@
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\SingleThreadSpec.scala:69:19: not enough arguments for constructor Index: (ROOT: Option[String], SIZE: Int, KEY_SIZE: Int, TUPLE_SIZE: Int)(implicit ord: Ordering[index.Bytes], implicit ec: scala.concurrent.ExecutionContext, implicit cache: index.Cache)index.Index.[0m
+[0m[[0m[31merror[0m] [0m[0mUnspecified value parameter TUPLE_SIZE.[0m
+[0m[[0m[31merror[0m] [0m[0m      val index = new Index(root, SIZE, TUPLE_SIZE)[0m
+[0m[[0m[31merror[0m] [0m[0m                  ^[0m
+[0m[[0m[31merror[0m] [0m[0mD:\Users\lucas\factdb\index\src\test\scala\index\SingleThreadSpec.scala:94:19: not enough arguments for constructor Index: (ROOT: Option[String], SIZE: Int, KEY_SIZE: Int, TUPLE_SIZE: Int)(implicit ord: Ordering[index.Bytes], implicit ec: scala.concurrent.ExecutionContext, implicit cache: index.Cache)index.Index.[0m
+[0m[[0m[31merror[0m] [0m[0mUnspecified value parameter TUPLE_SIZE.[0m
+[0m[[0m[31merror[0m] [0m[0m      val index = new Index(root, SIZE, TUPLE_SIZE)[0m
+[0m[[0m[31merror[0m] [0m[0m                  ^[0m
+[0m[[0m[31merror[0m] [0m[0mtwo errors found[0m

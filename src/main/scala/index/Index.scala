@@ -4,19 +4,10 @@ import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
 
 class Index(val ROOT: Option[String],
-            val SIZE: Int,
-            val TUPLE_SIZE: Int)(implicit val ord: Ordering[Bytes], val ec: ExecutionContext, cache: Cache){
+            val NR_ENTRIES: Int)(implicit val ord: Ordering[Bytes], val ec: ExecutionContext, cache: Cache){
 
-  val LEAF_MAX_LENGTH = (SIZE/TUPLE_SIZE)
-  val LEAF_MIN_LENGTH = LEAF_MAX_LENGTH/2
-
-  assert(LEAF_MIN_LENGTH < LEAF_MAX_LENGTH)
-
-  val META_TUPLE_SIZE = TUPLE_SIZE + 36
-  val META_MAX_LENGTH = (SIZE/META_TUPLE_SIZE)
-  val META_MIN_LENGTH = META_MAX_LENGTH/2
-
-  assert(META_MIN_LENGTH < META_MAX_LENGTH)
+  val MIN = NR_ENTRIES/2
+  val MAX = NR_ENTRIES
 
   implicit val ctx = new Context(ROOT)
 
@@ -92,7 +83,7 @@ class Index(val ROOT: Option[String],
   def insertEmpty(data: Seq[Tuple]): Future[(Boolean, Int)] = {
     println(s"tree is empty ! Creating first leaf...")
 
-    val leaf = new Leaf(UUID.randomUUID.toString, TUPLE_SIZE, LEAF_MIN_LENGTH, LEAF_MAX_LENGTH, SIZE)
+    val leaf = new Leaf(UUID.randomUUID.toString, MIN, MAX)
 
     ctx.blocks += leaf.id -> leaf
     ctx.parents += leaf.id -> (None, 0)
@@ -116,21 +107,12 @@ class Index(val ROOT: Option[String],
         left.insert(Seq(prev.last -> prev.id))
       }
 
-      /*assert(ctx.parents(left.id)._1.isEmpty || left.hasMinimum())
-      assert(left.size <= left.MAX_SIZE)
-
-      assert(ctx.parents(right.id)._1.isEmpty || right.hasMinimum())
-      assert(right.size <= right.MAX_SIZE)*/
-
       return handleParent(left, right)
     }
 
     println(s"parent not full ! Inserting...")
 
     left.insert(Seq(prev.last -> prev.id))._1
-
-    /*assert(ctx.parents(left.id)._1.isEmpty || left.hasMinimum(), s"${left.length} ${left.MIN_LENGTH}")
-    assert(left.size <= left.MAX_SIZE)*/
 
     recursiveCopy(left)
   }
@@ -143,7 +125,7 @@ class Index(val ROOT: Option[String],
 
         println(s"new level...")
 
-        val r = new Meta(UUID.randomUUID.toString, META_TUPLE_SIZE, META_MIN_LENGTH, META_MAX_LENGTH, SIZE)
+        val r = new Meta(UUID.randomUUID.toString, MIN, MAX)
 
         ctx.blocks += r.id -> r
         ctx.parents += r.id -> (None, 0)
@@ -187,9 +169,6 @@ class Index(val ROOT: Option[String],
   }
 
   def insert(data: Seq[Tuple]): Future[(Boolean, Int)] = {
-
-    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
-
     val sorted = data.sortBy(_._1)
 
     if(sorted.exists{case (k, _) => data.count{case (k1, _) => ord.equiv(k, k1)} > 1}){
@@ -229,8 +208,6 @@ class Index(val ROOT: Option[String],
   def merge[T <: Block](left: T, lpos: Int, right: T, rpos: Int, parent: Meta)(side: String): Future[Boolean] = {
 
     left.merge(right.asInstanceOf[left.type])
-
-    assert(left.hasMinimum())
 
     parent.setPointer(Seq((left.last, left.id, lpos)))
     parent.removeAt(rpos)
@@ -272,14 +249,11 @@ class Index(val ROOT: Option[String],
           if(rnode.canBorrowTo(target)){
             val right = rnode.copy()
 
-            println(s"bfr before ${right.length} target ${target.length} min ${right.MIN_LENGTH} tpe ${right.isInstanceOf[Leaf]}")
+            println(s"bfr before ${right.length} target ${target.length} min ${right.MIN} tpe ${right.isInstanceOf[Leaf]}")
 
             right.borrowRightTo(target)
 
             println(s"bfr after ${right.length}")
-
-            assert(right.hasMinimum())
-            assert(target.hasMinimum())
 
             parent.setPointer(Seq(
               Tuple3(target.last, target.id, pos),
@@ -307,14 +281,11 @@ class Index(val ROOT: Option[String],
           if(lnode.canBorrowTo(target)){
             val left = lnode.copy()
 
-            println(s"bfl before ${left.length} target ${target.length} min ${left.MIN_LENGTH} tpe ${left.isInstanceOf[Leaf]}")
+            println(s"bfl before ${left.length} target ${target.length} min ${left.MIN} tpe ${left.isInstanceOf[Leaf]}")
 
             left.borrowLeftTo(target)
 
             println(s"bfl after ${left.length}")
-
-            assert(left.hasMinimum())
-            assert(target.hasMinimum())
 
             parent.setPointer(Seq(
               Tuple3(left.last, left.id, pos - 1),
@@ -426,11 +397,6 @@ class Index(val ROOT: Option[String],
   def updateLeaf(leaf: Leaf, data: Seq[Tuple]): Future[(Boolean, Int)] = {
     val left = leaf.copy()
 
-    if(left.isFull()){
-      val right = left.split()
-      return handleParent(left, right).map(_ -> 0)
-    }
-
     val (ok, n) = left.update(data)
 
     if(!ok) return Future.successful(false -> 0)
@@ -439,8 +405,6 @@ class Index(val ROOT: Option[String],
   }
 
   def update(data: Seq[Tuple]): Future[(Boolean, Int)] = {
-
-    assert(!data.map{case (k, v) => k.length + v.length}.exists(_ > TUPLE_SIZE))
 
     val sorted = data.sortBy(_._1)
 

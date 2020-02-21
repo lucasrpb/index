@@ -4,14 +4,11 @@ trait Block {
 
   val id: String
 
-  val MIN_LENGTH: Int
-  val MAX_LENGTH: Int
-  val MAX_SIZE: Int
-  val MAX_TUPLE_SIZE: Int
+  val MIN: Int
+  val MAX: Int
 
   def length: Int
   def size: Int
-  def remaining: Int
 
   def last: Bytes
 
