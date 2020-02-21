@@ -223,7 +223,7 @@ class Index(val ROOT: Option[String],
 
       if(parent.isEmpty()){
 
-        println(s"one level less... merged: ${left}\n")
+        println(s"one level less... merged: ${left}")
 
         ctx.parents += left.id -> (None, 0)
         ctx.root = Some(left.id)
@@ -249,11 +249,7 @@ class Index(val ROOT: Option[String],
           if(rnode.canBorrowTo(target)){
             val right = rnode.copy()
 
-            println(s"bfr before ${right.length} target ${target.length} min ${right.MIN} tpe ${right.isInstanceOf[Leaf]}")
-
             right.borrowRightTo(target)
-
-            println(s"bfr after ${right.length}")
 
             parent.setPointer(Seq(
               Tuple3(target.last, target.id, pos),
@@ -281,11 +277,7 @@ class Index(val ROOT: Option[String],
           if(lnode.canBorrowTo(target)){
             val left = lnode.copy()
 
-            println(s"bfl before ${left.length} target ${target.length} min ${left.MIN} tpe ${left.isInstanceOf[Leaf]}")
-
             left.borrowLeftTo(target)
-
-            println(s"bfl after ${left.length}")
 
             parent.setPointer(Seq(
               Tuple3(left.last, left.id, pos - 1),
@@ -311,7 +303,7 @@ class Index(val ROOT: Option[String],
 
     if(lopt.isEmpty && ropt.isEmpty){
 
-      println(s"no data siblings...")
+      println(s"no siblings...")
 
       if(target.isEmpty()){
         ctx.root = None

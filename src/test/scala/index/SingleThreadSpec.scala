@@ -30,7 +30,7 @@ class SingleThreadSpec extends Retriable {
     var data = Seq.empty[Tuple]
 
     val iter = 100//rand.nextInt(1, 1000)
-    val NR_ITEMS = 32
+    val NR_ITEMS = 4
 
     val KEY_SIZE = 32
     val TUPLE_SIZE = KEY_SIZE * 2//rand.nextInt(64, 256)
