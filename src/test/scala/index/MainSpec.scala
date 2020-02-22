@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
-class SingleThreadSpec extends Retriable {
+class MainSpec extends Retriable {
 
   override val times = 1
 
@@ -25,12 +25,15 @@ class SingleThreadSpec extends Retriable {
       override def compare(x: Bytes, y: Bytes): Int = c.compare(x, y)
     }
 
-    val ref = new AtomicReference[Option[String]](None)
-    implicit val cache = new MemoryCache()
-    var data = Seq.empty[Tuple]
-
-    val iter = 100//rand.nextInt(1, 1000)
+    val iter = 3//rand.nextInt(1, 1000)
     val NR_ITEMS = 4
+
+    val ref = new AtomicReference[Option[String]](None)
+    //implicit val cache = new MemoryCache()
+    implicit val serializer = new DefaultSerializer(NR_ITEMS)
+    val store = new CQLStore(NR_ITEMS)
+    implicit  val cache = new DefaultCache(store)
+    var data = Seq.empty[Tuple]
 
     val KEY_SIZE = 32
     val TUPLE_SIZE = KEY_SIZE * 2//rand.nextInt(64, 256)
